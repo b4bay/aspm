@@ -14,5 +14,5 @@ COPY /aspm /app/
 ENV PATH="$PATH:/app"
 
 # To run with arguments
-ENTRYPOINT ["/bin/sh", "-c"]
+ENTRYPOINT []
 CMD ["aspm"]
