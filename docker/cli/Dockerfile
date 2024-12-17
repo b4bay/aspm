@@ -14,6 +14,3 @@ COPY /aspm /app/
 
 # To run with arguments
 ENTRYPOINT ["/app/aspm"]
-
-# Run the application
-CMD ["./aspm"]
