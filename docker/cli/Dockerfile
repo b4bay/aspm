@@ -12,5 +12,8 @@ RUN apt-get update && apt-get install -y \
 # Copy backend files into container
 COPY /aspm /app/
 
+# To run with arguments
+ENTRYPOINT ["/app/aspm"]
+
 # Run the application
 CMD ["./aspm"]
