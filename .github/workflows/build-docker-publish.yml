@@ -44,32 +44,19 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
+      # Run tests
+      - name: Run tests
+        run: go test -v ./cmd/cli
+
       # Build the binary for 64-bit Linux
       - name: Build Go binary for Linux
         run: GOOS=linux GOARCH=amd64 go build -o aspm ./cmd/cli
 
       # Create a GitHub release
       - name: Create GitHub release
-        uses: gh-actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: "Release for version ${{ github.ref }}"
-          draft: false
-          prerelease: false
-
-      # Upload the compiled binary to GitHub release
-      - name: Upload binary to GitHub release
-        uses: gh-actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./aspm
-          asset_name: aspm-linux-amd64
-          asset_content_type: application/octet-stream
+          files: aspm
 
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
@@ -133,9 +120,9 @@ jobs:
 
       # Add a link to the Docker image in the release body
       - name: Update GitHub release with Docker image link
-        uses: octokit/request-action@v2
+        uses: octokit/request-action@v2.x
         with:
-          route: POST /repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }}/assets
+          route: POST /repos/${{ github.repository }}/releases/${{ steps.gh_release.outputs.id }}/assets
           data: |
             {
               "name": "aspm-docker-image",
