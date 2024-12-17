@@ -120,17 +120,3 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
-
-      # Add a link to the Docker image in the release body
-      - name: Update GitHub release with Docker image link
-        uses: octokit/request-action@v2.x
-        with:
-          route: POST /repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }}/assets
-          data: |
-            {
-              "name": "aspm-docker-image",
-              "label": "Docker Image for ASPM CLI Tool",
-              "url": "https://ghcr.io/${{ github.repository }}/aspm:${{ github.ref }}"
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
