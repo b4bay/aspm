@@ -125,9 +125,7 @@ jobs:
       - name: Update GitHub release with Docker image link
         uses: octokit/request-action@v2.x
         with:
-          route: POST /repos/${{ repo }}/releases/{{ release_id }}/assets
-          repo: ${{ github.repository }}
-          release_id: ${{ steps.create_release.outputs.id }}
+          route: POST /repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }}/assets
           data: |
             {
               "name": "aspm-docker-image",
