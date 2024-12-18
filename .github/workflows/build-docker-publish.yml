@@ -27,6 +27,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Set up git (for tests)
+      - name: Install git
+        run: sudo apt-get install -y git
+
       # Set up Go
       - name: Set up Go
         uses: actions/setup-go@v3
