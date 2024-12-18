@@ -4,109 +4,176 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 )
-
-// Predefined allowed values for "type"
-var allowedTypes = map[string]bool{
-	"git":  true,
-	"bin":  true,
-	"fail": true,
-}
 
 var Exit = os.Exit
 
+// Mode constants
+const (
+	ModeCollect = "collect"
+	ModeGW      = "gw"
+	ModeOrigin  = "origin"
+)
+
+// Default values for environment variables
+const (
+	DefaultServer = "http://localhost:8080"
+	DefaultKey    = "default-key"
+	DefaultType   = "git"
+	DefaultMethod = "compile"
+	DefaultFrom   = "git"
+	DefaultTo     = "bin"
+)
+
+var (
+	DefaultArtefact, _ = os.Getwd()
+	DefaultScope, _    = os.Getwd()
+)
+
+var (
+	DefaultModeName = "collect"
+	DefaultMode     = collectMode
+)
+
+// Allowed values
+var (
+	AllowedTypes   = []string{"git", "bin", "fail"}
+	AllowedMethods = []string{"compile", "pack"}
+)
+
+func isValidValue(value string, allowed []string) bool {
+	for _, v := range allowed {
+		if value == v {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
-	// Default mode is "collect" if no arguments are provided
-	mode := "collect"
+	var mode string
 
 	// Check if mode is explicitly set as the first argument
 	if len(os.Args) > 1 && os.Args[1][0] != '-' {
 		mode = os.Args[1]                                      // Set mode to the first argument
 		os.Args = append([]string{os.Args[0]}, os.Args[2:]...) // Shift arguments for flag parsing
+	} else {
+		mode = DefaultModeName
 	}
 
-	// Define command-line flags
-	serverEnv := os.Getenv("SERVER_URL")
-	keyEnv := os.Getenv("KEY")
+	args := os.Args[1:]
 
+	switch mode {
+	case ModeCollect:
+		collectMode(args)
+	case ModeGW:
+		gwMode(args)
+	case ModeOrigin:
+		originMode(args)
+	default:
+		fmt.Printf("Error: Unknown mode '%s'. Supported modes are 'origin', 'collect' and 'gw'.\n", mode)
+		Exit(1)
+	}
+}
+
+func collectMode(args []string) {
+	fs := flag.NewFlagSet(ModeCollect, flag.ExitOnError)
+	server := fs.String("server", os.Getenv("SERVER"), "Server URL")
+	key := fs.String("key", os.Getenv("KEY"), "Key string")
+	typ := fs.String("type", DefaultType, "Type value")
+	scope := fs.String("scope", DefaultScope, "Scope path")
+	fs.Parse(args)
+
+	if *typ != "" && !isValidValue(*typ, AllowedTypes) {
+		fmt.Printf("Error: Invalid type '%s'\n", *typ)
+		Exit(1)
+	}
+
+	unnamed := fs.Args()
+	var artefact = DefaultArtefact
+	if len(unnamed) > 1 {
+		fmt.Println("Error: only one artefact allowed")
+		Exit(1)
+	}
+
+	if len(unnamed) == 1 {
+		artefact = unnamed[0]
+	}
+
+	fmt.Printf("Running in 'collect' mode: server=%s, key=%s, type=%s, scope=%s, artefact=%s\n", *server, *key, *typ, *scope, artefact)
+}
+
+func gwMode(args []string) {
+	fs := flag.NewFlagSet(ModeGW, flag.ExitOnError)
+	server := fs.String("server", os.Getenv("SERVER"), "Server URL")
+	key := fs.String("key", os.Getenv("KEY"), "Key string")
+	typ := fs.String("type", DefaultType, "Type value")
+	scope := fs.String("scope", DefaultScope, "Scope path")
+	fs.Parse(args)
+
+	if *typ != "" && !isValidValue(*typ, AllowedTypes) {
+		fmt.Printf("Error: Invalid type '%s'\n", *typ)
+		Exit(1)
+	}
+
+	unnamed := fs.Args()
+	var artefact = DefaultArtefact
+	if len(unnamed) > 1 {
+		fmt.Println("Error: only one artefact allowed")
+		Exit(1)
+	}
+
+	if len(unnamed) == 1 {
+		artefact = unnamed[0]
+	}
+
+	// Example condition for non-zero exit code
+	if *typ == "fail" {
+		fmt.Println("Condition matched. Exiting with error.")
+		Exit(1)
+	}
+
+	fmt.Printf("Running in 'gw' mode: server=%s, key=%s, type=%s, scope=%s, artefact=%s\n", *server, *key, *typ, *scope, artefact)
+
+}
+
+func originMode(args []string) {
 	var (
-		server string
-		key    string
-		typ    string
-		target string
+		artefact string
+		sources  []string
 	)
 
-	// Create a flag set for parsing arguments
-	fs := flag.NewFlagSet(mode, flag.ExitOnError)
-	fs.StringVar(&server, "server", serverEnv, "Server URL (default from SERVER_URL env)")
-	fs.StringVar(&key, "key", keyEnv, "Authentication key (default from KEY env)")
-	fs.StringVar(&typ, "type", "git", "Type of operation (bin or git, default git)")
-	workDir, _ := os.Getwd()
-	fs.StringVar(&target, "target", workDir, "Path to a file or directory on the filesystem, default '.'")
+	fs := flag.NewFlagSet(ModeOrigin, flag.ExitOnError)
+	server := fs.String("server", os.Getenv("SERVER"), "Server URL")
+	key := fs.String("key", os.Getenv("KEY"), "Key string")
+	method := fs.String("method", DefaultMethod, "Method (compile or pack)")
+	from := fs.String("from", DefaultFrom, "From value")
+	to := fs.String("to", DefaultTo, "To value")
+	fs.Parse(args)
 
-	// Parse flags
-	err := fs.Parse(os.Args[1:])
-	if err != nil {
-		fmt.Println("Error: Failed to parse arguments")
+	unnamed := fs.Args()
+	if len(unnamed) < 2 {
+		fmt.Println("Error: at least artefact and one origin required")
+		Exit(1)
+	} else {
+		artefact = unnamed[0]
+		sources = unnamed[1:]
+	}
+
+	if !isValidValue(*method, AllowedMethods) {
+		fmt.Printf("Error: Invalid method '%s'", *method)
 		Exit(1)
 	}
 
-	// Validate "type" flag if provided
-	if typ != "" && !allowedTypes[typ] {
-		fmt.Printf("Error: Invalid type '%s'. Allowed values are: bin, git, fail\n", typ)
+	if *from != "" && !isValidValue(*from, AllowedTypes) {
+		fmt.Printf("Error: Invalid from '%s'", *from)
 		Exit(1)
 	}
 
-	// Validate "target" flag (optional, but must be valid if provided)
-	if target != "" {
-		if _, err := os.Stat(target); os.IsNotExist(err) {
-			fmt.Printf("Error: Target path '%s' does not exist\n", target)
-			Exit(1)
-		}
-	}
-
-	// Handle modes
-	switch mode {
-	case "collect":
-		handleCollectMode(server, key, typ, target)
-	case "gw":
-		handleGWMode(server, key, typ, target)
-	default:
-		fmt.Printf("Error: Unknown mode '%s'. Supported modes are 'collect' and 'gw'.\n", mode)
+	if *to != "" && !isValidValue(*to, AllowedTypes) {
+		fmt.Printf("Error: Invalid to '%s'", *to)
 		Exit(1)
 	}
-}
 
-// handleCollectMode handles the "collect" mode logic
-func handleCollectMode(server, key, typ, target string) {
-	fmt.Println("Running in 'collect' mode")
-	fmt.Printf("Server: %s\n", server)
-	fmt.Printf("Key: %s\n", key)
-	fmt.Printf("Type: %s\n", typ)
-	fmt.Printf("Target: %s\n", target)
-
-	// Example: Process the target path
-	if target != "" {
-		absPath, _ := filepath.Abs(target)
-		fmt.Printf("Processing target: %s\n", absPath)
-	}
-	fmt.Println("Collect mode completed successfully")
-}
-
-// handleGWMode handles the "gw" mode logic
-func handleGWMode(server, key, typ, target string) {
-	fmt.Println("Running in 'gw' mode")
-	fmt.Printf("Server: %s\n", server)
-	fmt.Printf("Key: %s\n", key)
-	fmt.Printf("Type: %s\n", typ)
-	fmt.Printf("Target: %s\n", target)
-
-	// Example: Simulate a condition for a non-zero exit code
-	if typ == "fail" {
-		fmt.Println("Error: Just fail in 'fail' mode")
-		Exit(2) // Non-zero exit code
-	}
-
-	fmt.Println("GW mode completed successfully")
+	fmt.Printf("Running in 'origin' mode: server=%s, key=%s, method=%s, from=%s, to=%s, artefact=%s, sources=%v\n", *server, *key, *method, *from, *to, artefact, sources)
 }

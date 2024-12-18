@@ -61,7 +61,7 @@ func TestDefaultMode(t *testing.T) {
 // Test explicit "collect" mode
 func TestCollectMode(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "collect", "-server", "https://test.com", "-key", "test-key", "-type", "git", "-target", "./testdir"}
+	os.Args = []string{"main", "collect", "-server", "http://example.com", "-key", "testkey", "-type", "bin", "-scope", "/path/to/target"}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -76,7 +76,7 @@ func TestCollectMode(t *testing.T) {
 // Test "gw" mode with valid input
 func TestGWModeValid(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "gw", "-server", "https://test.com", "-key", "test-key", "-type", "bin", "-target", "./testfile"}
+	os.Args = []string{"main", "gw", "-server", "https://test.com", "-key", "test-key", "-type", "bin", "./testfile"}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -99,7 +99,7 @@ func TestGWModeWithError(t *testing.T) {
 		t.Fatalf("Expected non-zero exit code for unknown mode, but got success. Output: %s", string(stdout))
 	}
 
-	if !strings.Contains(string(stdout), "Error: Just fail in 'fail' mode") {
+	if !strings.Contains(string(stdout), "Condition matched. Exiting with error") {
 		t.Fatalf("Expected specific error message for missing target path. Got output: %s", string(stdout))
 	}
 }
@@ -134,4 +134,49 @@ func TestUnknownMode(t *testing.T) {
 	if !strings.Contains(stdout, "Error: Unknown mode 'unknownmode'") {
 		t.Fatalf("Expected error message for unknown mode. Got output: %s", stdout)
 	}
+}
+
+func TestOriginMode(t *testing.T) {
+	Exit = mockExit
+	os.Args = []string{"main", "origin", "-server", "https://test.com", "-key", "test-key", "-method", "pack", "-from", "bin", "-to", "bin", "/path/to/artefact", "/path/to/source1", "/path/to/source2"}
+
+	stdout, stderr := captureOutput(func() { main() })
+
+	if !strings.Contains(stdout, "Running in 'origin' mode") {
+		t.Fatalf("Expected 'origin' mode to run. Got stdout: %s", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
+	}
+}
+
+func TestOriginModeDefaults(t *testing.T) {
+	Exit = mockExit
+	os.Args = []string{"main", "origin", "/path/to/artefact", "/path/to/source"}
+
+	stdout, stderr := captureOutput(func() { main() })
+
+	if !strings.Contains(stdout, "Running in 'origin' mode") {
+		t.Fatalf("Expected 'origin' mode to run. Got stdout: %s", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
+	}
+
+}
+
+func TestMissingParameters(t *testing.T) {
+	Exit = mockExit
+	os.Args = []string{"main", "origin"}
+
+	stdout, _ := captureOutput(func() { main() })
+
+	if exitCode == 0 {
+		t.Fatalf("Expected non-zero exit code for 'origin' mode, but got success. Output: %s", string(stdout))
+	}
+
+	if !strings.Contains(stdout, "Error: at least artefact and one origin required") {
+		t.Fatalf("Expected error message for 'origin' mode. Got output: %s", stdout)
+	}
+
 }
