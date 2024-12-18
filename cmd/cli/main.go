@@ -1,9 +1,15 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 var Exit = os.Exit
@@ -176,4 +182,80 @@ func originMode(args []string) {
 	}
 
 	fmt.Printf("Running in 'origin' mode: server=%s, key=%s, method=%s, from=%s, to=%s, artefact=%s, sources=%v\n", *server, *key, *method, *from, *to, artefact, sources)
+
+	modeGit := func(path string) {
+		info, err := os.Stat(path)
+		if err != nil {
+			fmt.Printf("Error: cannot access '%s': %v\n", path, err)
+			Exit(1)
+		}
+
+		if !info.IsDir() {
+			fmt.Printf("Error: '%s' is not a directory\n", path)
+			Exit(1)
+		}
+
+		// Check if the directory is a git repository
+		gitDir := filepath.Join(path, ".git")
+		if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+			fmt.Printf("Error: '%s' is not a git repository\n", path)
+			Exit(1)
+		}
+
+		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = path
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Printf("Error: running git command in '%s': %v\n %s\n", path, err, string(output))
+			Exit(1)
+		}
+
+		fmt.Printf("%s => %s\n", path, strings.TrimSpace(string(output)))
+	}
+
+	modeBin := func(path string) {
+		info, err := os.Stat(path)
+		if err != nil {
+			fmt.Printf("Error: cannot access '%s': %v\n", path, err)
+			Exit(1)
+		}
+
+		if info.IsDir() {
+			fmt.Printf("Error: '%s' is not a file\n", path)
+			Exit(1)
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			fmt.Printf("Error: cannot open file '%s': %v\n", path, err)
+			Exit(1)
+		}
+		defer file.Close()
+
+		hasher := sha1.New()
+		if _, err := io.Copy(hasher, file); err != nil {
+			fmt.Printf("Error: cannot calculate hash for file '%s': %v\n", path, err)
+			Exit(1)
+		}
+
+		hash := hex.EncodeToString(hasher.Sum(nil))
+		fmt.Printf("%s => %s\n", path, hash)
+	}
+
+	if *to == "git" {
+		modeGit(artefact)
+	} else if *to == "bin" {
+		modeBin(artefact)
+	}
+
+	if *from == "git" {
+		for _, source := range sources {
+			modeGit(source)
+		}
+	} else if *from == "bin" {
+		for _, source := range sources {
+			modeBin(source)
+		}
+	}
+
 }

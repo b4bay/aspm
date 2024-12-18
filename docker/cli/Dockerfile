@@ -7,6 +7,7 @@ WORKDIR /app
 # Install necessary dependencies (e.g., for serving static files, etc.)
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend files into container

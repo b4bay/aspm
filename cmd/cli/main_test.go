@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -12,6 +13,7 @@ var exitCode int
 // Custom function to mock os.Exit in tests
 func mockExit(code int) {
 	exitCode = code
+	return
 }
 
 // Helper function to capture stdout and stderr during test execution
@@ -138,7 +140,15 @@ func TestUnknownMode(t *testing.T) {
 
 func TestOriginMode(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "origin", "-server", "https://test.com", "-key", "test-key", "-method", "pack", "-from", "bin", "-to", "bin", "/path/to/artefact", "/path/to/source1", "/path/to/source2"}
+
+	artefactPath1 := createTempFileWithContent(t, "This is an artefact file 1.")
+	defer os.Remove(artefactPath1)
+	artefactPath2 := createTempFileWithContent(t, "This is an artefact file 2.")
+	defer os.Remove(artefactPath2)
+	artefactPath3 := createTempFileWithContent(t, "This is an artefact file 3.")
+	defer os.Remove(artefactPath3)
+
+	os.Args = []string{"main", "origin", "-server", "https://test.com", "-key", "test-key", "-method", "pack", "-from", "bin", "-to", "bin", artefactPath1, artefactPath2, artefactPath3}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -152,7 +162,7 @@ func TestOriginMode(t *testing.T) {
 
 func TestOriginModeDefaults(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "origin", "/path/to/artefact", "/path/to/source"}
+	os.Args = []string{"main", "origin", ".", "."}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -165,18 +175,86 @@ func TestOriginModeDefaults(t *testing.T) {
 
 }
 
-func TestMissingParameters(t *testing.T) {
+func TestOriginModeValidGit(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "origin"}
 
+	// Set up a temporary Git repository for testing
+	tempDir := t.TempDir()
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to initialize git repository: %v", err)
+	}
+
+	cmd = exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to create initial commit: %v", err)
+	}
+
+	// Test valid artefact as a Git repository
+	os.Args = []string{"main", "origin", "-to", "git", "-from", "git", tempDir, tempDir}
+	stdout, stderr := captureOutput(func() { main() })
+
+	if stderr != "" {
+		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
+	}
+
+	if !strings.Contains(stdout, "=>") {
+		t.Fatalf("Expected git hash in output, got: %s", stdout)
+	}
+}
+
+func TestOriginModeInvalidGit(t *testing.T) {
+	Exit = mockExit
+
+	nonGitDir := t.TempDir()
+	// Test invalid artefact as non-Git repository
+	os.Args = []string{"main", "origin", "-to", "git", "-from", "git", nonGitDir, nonGitDir}
 	stdout, _ := captureOutput(func() { main() })
 
 	if exitCode == 0 {
 		t.Fatalf("Expected non-zero exit code for 'origin' mode, but got success. Output: %s", string(stdout))
 	}
 
-	if !strings.Contains(stdout, "Error: at least artefact and one origin required") {
-		t.Fatalf("Expected error message for 'origin' mode. Got output: %s", stdout)
+	if !strings.Contains(stdout, "is not a git repository") {
+		t.Fatalf("Expected error message for non-git repository. Got output: %s", stdout)
+	}
+}
+
+func createTempFileWithContent(t *testing.T, content string) string {
+	t.Helper()
+	tempFile, err := os.CreateTemp("", "testfile-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	tempFile.WriteString(content)
+	tempFile.Close()
+	return tempFile.Name()
+}
+
+func TestOriginMode_FileHashing(t *testing.T) {
+	Exit = mockExit
+
+	// Create temporary artefact file
+	artefactPath := createTempFileWithContent(t, "This is an artefact file.")
+	defer os.Remove(artefactPath)
+
+	// Create temporary source files
+	source1Path := createTempFileWithContent(t, "Source file 1 content.")
+	defer os.Remove(source1Path)
+
+	source2Path := createTempFileWithContent(t, "Source file 2 content.")
+	defer os.Remove(source2Path)
+
+	os.Args = []string{"main", "origin", "-to", "bin", "-from", "bin", artefactPath, source1Path, source2Path}
+	stdout, stderr := captureOutput(func() { main() })
+
+	if stderr != "" {
+		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
 	}
 
+	if !strings.Contains(stdout, "=>") {
+		t.Fatalf("Expected hash in output, got: %s", stdout)
+	}
 }
