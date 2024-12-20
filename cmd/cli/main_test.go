@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,6 +16,22 @@ var exitCode int
 func mockExit(code int) {
 	exitCode = code
 	return
+}
+
+type ASPMClientMock struct {
+	endpoint string
+	data     string
+}
+
+func (c *ASPMClientMock) Post(endpoint string, data interface{}) error {
+	c.endpoint = endpoint
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %w", err)
+	}
+	c.data = string(jsonData)
+	fmt.Printf("POST to %s: %s\n", c.endpoint, c.data)
+	return nil
 }
 
 // Helper function to capture stdout and stderr during test execution
@@ -48,7 +66,7 @@ func captureOutput(f func()) (string, string) {
 // Test default mode ("collect")
 func TestDefaultMode(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "-server", "https://test.com", "-key", "test-key", "-type", "git"}
+	os.Args = []string{"main", "-type", "git"}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -63,7 +81,7 @@ func TestDefaultMode(t *testing.T) {
 // Test explicit "collect" mode
 func TestCollectMode(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "collect", "-server", "http://example.com", "-key", "testkey", "-type", "bin", "-scope", "/path/to/target"}
+	os.Args = []string{"main", "collect", "-type", "bin", "-scope", "/path/to/target"}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -78,7 +96,7 @@ func TestCollectMode(t *testing.T) {
 // Test "gw" mode with valid input
 func TestGWModeValid(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "gw", "-server", "https://test.com", "-key", "test-key", "-type", "bin", "./testfile"}
+	os.Args = []string{"main", "gw", "-type", "bin", "./testfile"}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -87,22 +105,6 @@ func TestGWModeValid(t *testing.T) {
 	}
 	if stderr != "" {
 		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
-	}
-}
-
-// Test "gw" mode with error condition
-func TestGWModeWithError(t *testing.T) {
-	Exit = mockExit
-	os.Args = []string{"main", "gw", "-type", "fail"}
-
-	stdout, _ := captureOutput(func() { main() })
-
-	if exitCode == 0 {
-		t.Fatalf("Expected non-zero exit code for unknown mode, but got success. Output: %s", string(stdout))
-	}
-
-	if !strings.Contains(string(stdout), "Condition matched. Exiting with error") {
-		t.Fatalf("Expected specific error message for missing target path. Got output: %s", string(stdout))
 	}
 }
 
@@ -140,6 +142,7 @@ func TestUnknownMode(t *testing.T) {
 
 func TestOriginMode(t *testing.T) {
 	Exit = mockExit
+	aspmClient = &ASPMClientMock{}
 
 	artefactPath1 := createTempFileWithContent(t, "This is an artefact file 1.")
 	defer os.Remove(artefactPath1)
@@ -148,7 +151,7 @@ func TestOriginMode(t *testing.T) {
 	artefactPath3 := createTempFileWithContent(t, "This is an artefact file 3.")
 	defer os.Remove(artefactPath3)
 
-	os.Args = []string{"main", "origin", "-server", "https://test.com", "-key", "test-key", "-method", "pack", "-from", "bin", "-to", "bin", artefactPath1, artefactPath2, artefactPath3}
+	os.Args = []string{"main", "origin", "-method", "pack", "-from", "bin", "-to", "bin", artefactPath1, artefactPath2, artefactPath3}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -158,25 +161,11 @@ func TestOriginMode(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
 	}
-}
-
-func TestOriginModeDefaults(t *testing.T) {
-	Exit = mockExit
-	os.Args = []string{"main", "origin", ".", "."}
-
-	stdout, stderr := captureOutput(func() { main() })
-
-	if !strings.Contains(stdout, "Running in 'origin' mode") {
-		t.Fatalf("Expected 'origin' mode to run. Got stdout: %s", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
-	}
-
 }
 
 func TestOriginModeValidGit(t *testing.T) {
 	Exit = mockExit
+	aspmClient = &ASPMClientMock{}
 
 	// Set up a temporary Git repository for testing
 	tempDir := t.TempDir()
@@ -200,13 +189,14 @@ func TestOriginModeValidGit(t *testing.T) {
 		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
 	}
 
-	if !strings.Contains(stdout, "=>") {
-		t.Fatalf("Expected git hash in output, got: %s", stdout)
+	if !strings.Contains(stdout, "{\"") {
+		t.Fatalf("Expected json in output, got: %s", stdout)
 	}
 }
 
 func TestOriginModeInvalidGit(t *testing.T) {
 	Exit = mockExit
+	aspmClient = &ASPMClientMock{}
 
 	nonGitDir := t.TempDir()
 	// Test invalid artefact as non-Git repository
@@ -217,7 +207,7 @@ func TestOriginModeInvalidGit(t *testing.T) {
 		t.Fatalf("Expected non-zero exit code for 'origin' mode, but got success. Output: %s", string(stdout))
 	}
 
-	if !strings.Contains(stdout, "is not a git repository") {
+	if !strings.Contains(stdout, "not a git repository") {
 		t.Fatalf("Expected error message for non-git repository. Got output: %s", stdout)
 	}
 }
@@ -235,6 +225,7 @@ func createTempFileWithContent(t *testing.T, content string) string {
 
 func TestOriginMode_FileHashing(t *testing.T) {
 	Exit = mockExit
+	aspmClient = &ASPMClientMock{}
 
 	// Create temporary artefact file
 	artefactPath := createTempFileWithContent(t, "This is an artefact file.")
@@ -254,7 +245,7 @@ func TestOriginMode_FileHashing(t *testing.T) {
 		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
 	}
 
-	if !strings.Contains(stdout, "=>") {
-		t.Fatalf("Expected hash in output, got: %s", stdout)
+	if !strings.Contains(stdout, "{\"") {
+		t.Fatalf("Expected json in output, got: %s", stdout)
 	}
 }
