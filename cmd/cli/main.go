@@ -50,28 +50,57 @@ func main() {
 }
 
 func handleCollectMode(args []string) {
+	var artefactType shared.ArtefactType
+	var (
+		artefact   string
+		artefactId string
+		reports    []string
+	)
+
+	var err error
+	var collectPayload shared.CollectMessageBody
+
 	fs := flag.NewFlagSet(string(shared.CliModeCollect), flag.ExitOnError)
 	typ := fs.String("type", string(shared.ArtefactTypeDefault), "Artefact type")
-	scope := fs.String("scope", DefaultScope, "Scope path")
 	fs.Parse(args)
 
-	if *typ != "" && !shared.IsValidArtefactType(shared.ArtefactType(*typ)) {
-		fmt.Printf("Error: Invalid type '%s'\n", *typ)
-		Exit(1)
-	}
-
 	unnamed := fs.Args()
-	var artefact = DefaultArtefact
-	if len(unnamed) > 1 {
-		fmt.Println("Error: only one artefact allowed")
+	if len(unnamed) < 2 {
+		fmt.Println("Error: at least artefact and one report required")
+		Exit(1)
+	} else {
+		artefact = unnamed[0]
+		reports = unnamed[1:]
+	}
+
+	if shared.IsValidArtefactType(shared.ArtefactType(*typ)) {
+		artefactType = shared.ArtefactType(*typ)
+	} else {
+		fmt.Printf("Error: Invalid artefact type '%s'", *typ)
 		Exit(1)
 	}
 
-	if len(unnamed) == 1 {
-		artefact = unnamed[0]
+	if artefactType == shared.ArtefactTypeGit {
+		artefactId, err = cli.IdGit(artefact)
+		if err != nil {
+			fmt.Printf("Error: Invalid artefact '%s: %v'\n", artefact, err)
+			Exit(1)
+		}
+	} else if artefactType == shared.ArtefactTypeBin {
+		artefactId, err = cli.IdBin(artefact)
+		if err != nil {
+			fmt.Printf("Error: Invalid artefact '%s: %v'\n", artefact, err)
+			Exit(1)
+		}
 	}
 
-	fmt.Printf("Running in 'collect' mode: type=%s, scope=%s, artefact=%s\n", *typ, *scope, artefact)
+	fmt.Printf("Running in 'collect' mode: type=%s, artefact=%s, reports=%v\n", *typ, artefact, reports)
+
+	collectPayload.ArtefactId = artefactId
+	collectPayload.Environment = cli.GetEnvironment()
+	collectPayload.Reports = cli.GetReports(reports)
+
+	aspmClient.Post("/collect", collectPayload)
 }
 
 func handleGWMode(args []string) {

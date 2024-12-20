@@ -31,7 +31,7 @@ func (c *ASPMClient) Post(endpoint string, data interface{}) error {
 	}
 
 	// Create an HTTP request
-	url := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+	url := fmt.Sprintf("%s%s", c.serverURL, endpoint)
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)

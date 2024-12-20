@@ -64,3 +64,9 @@ type OriginMessageBody struct {
 	OriginIds   []string          `json:"origin_ids"`
 	ProdMethod  ProductionMethod  `json:"production_method"`
 }
+
+type CollectMessageBody struct {
+	Environment map[string]string `json:"environment"`
+	ArtefactId  string            `json:"artefact_id"`
+	Reports     map[string]string `json:"reports"`
+}

@@ -81,7 +81,7 @@ func TestDefaultMode(t *testing.T) {
 // Test explicit "collect" mode
 func TestCollectMode(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "collect", "-type", "bin", "-scope", "/path/to/target"}
+	os.Args = []string{"main", "collect", "-type", "bin", "/path/to/target", "/path/to/report"}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -119,7 +119,7 @@ func TestInvalidTypeArgument(t *testing.T) {
 		t.Fatalf("Expected non-zero exit code for unknown mode, but got success. Output: %s", string(stdout))
 	}
 
-	if !strings.Contains(string(stdout), "Error: Invalid type 'invalid'") {
+	if !strings.Contains(string(stdout), "Error: Invalid artefact type 'invalid'") {
 		t.Fatalf("Expected error message for invalid type. Got output: %s", string(stdout))
 	}
 }
