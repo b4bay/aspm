@@ -83,13 +83,13 @@ func handleCollectMode(args []string) {
 	if artefactType == shared.ArtefactTypeGit {
 		artefactId, err = cli.IdGit(artefact)
 		if err != nil {
-			fmt.Printf("Error: Invalid artefact '%s: %v'\n", artefact, err)
+			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefact, err)
 			Exit(1)
 		}
 	} else if artefactType == shared.ArtefactTypeBin {
 		artefactId, err = cli.IdBin(artefact)
 		if err != nil {
-			fmt.Printf("Error: Invalid artefact '%s: %v'\n", artefact, err)
+			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefact, err)
 			Exit(1)
 		}
 	}
@@ -100,7 +100,7 @@ func handleCollectMode(args []string) {
 	collectPayload.Environment = cli.GetEnvironment()
 	collectPayload.Reports = cli.GetReports(reports)
 
-	aspmClient.Post("/collect", collectPayload)
+	aspmClient.Post("/"+string(shared.CliModeCollect), collectPayload)
 }
 
 func handleGWMode(args []string) {
@@ -221,6 +221,6 @@ func handleOriginMode(args []string) {
 	originPayload.ProdMethod = productionMethod
 	originPayload.Environment = cli.GetEnvironment()
 
-	aspmClient.Post("/origin", originPayload)
+	aspmClient.Post("/"+string(shared.CliModeOrigin), originPayload)
 
 }
