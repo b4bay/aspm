@@ -1,5 +1,5 @@
 # Start a new stage for the runtime image
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 # Install SQLite
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates sqlite3 && rm -rf /var/lib/apt/lists/*
