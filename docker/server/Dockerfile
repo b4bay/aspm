@@ -5,7 +5,7 @@ FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates sqlite3 && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
-WORKDIR /root/
+WORKDIR /app/
 
 # Copy the binary from the builder stage
 COPY /aspmd /app/

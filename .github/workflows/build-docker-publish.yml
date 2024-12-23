@@ -168,7 +168,7 @@ jobs:
 
       # Build the binary for 64-bit Linux
       - name: Build Go binary for Linux
-        run: GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aspmd ./cmd/server
+        run: GO111MODULE=on GOOS=linux GOARCH=amd64 go build -o aspmd ./cmd/server
 
       # Create a GitHub release
       - name: Create GitHub release
