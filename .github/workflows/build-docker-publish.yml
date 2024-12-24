@@ -237,3 +237,21 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+      - name: Deploy in YC
+        id: deploy-coi
+        uses: yc-actions/yc-coi-deploy@v2
+        env:
+          IMAGE_NAME: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}d:${{ github.ref_name }
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        with:
+          yc-sa-json-credentials: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
+          folder-id: ${{ secrets.YC_FOLDER_ID }}
+          vm-name: ${{ secrets.YC_VM_NAME }}
+          vm-subnet-id: ${{ secrets.YC_SUBNET_ID }}
+          vm-platform-id: standard-v2
+          vm-cores: 2
+          vm-memory: 1Gb
+          vm-core-fraction: 5
+          docker-compose-path: '.docker/server/docker-compose.yaml'
+          user-data-path: '.docker/server/user-data.yaml'
