@@ -256,5 +256,5 @@ jobs:
           vm-disk-type: network-ssd
           vm-disk-size: 15Gb
           vm-service-account-id: ${{ secrets.YC_VM_SA_ID }}
-          docker-compose-path: '.docker/server/docker-compose.yaml'
-          user-data-path: '.docker/server/user-data.yaml'
+          docker-compose-path: './docker/server/docker-compose.yaml'
+          user-data-path: './docker/server/user-data.yaml'
