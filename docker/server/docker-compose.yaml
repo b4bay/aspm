@@ -2,7 +2,7 @@ version: '3.7'
 services:
   aspmd:
     container_name: aspmd
-    image: "ghcr.io/b4bay/aspmd:{{ env.IMAGE_TAG }}"
+    image: "{{ env.IMAGE_NAME }}"
     ports:
       - "8080:8080"
     restart: always
