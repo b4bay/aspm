@@ -253,5 +253,8 @@ jobs:
           vm-cores: 2
           vm-memory: 1Gb
           vm-core-fraction: 5
+          vm-disk-type: network-ssd
+          vm-disk-size: 15Gb
+          vm-service-account-name: ${{ secrets.YC_VM_SA_NAME }}
           docker-compose-path: '.docker/server/docker-compose.yaml'
           user-data-path: '.docker/server/user-data.yaml'
