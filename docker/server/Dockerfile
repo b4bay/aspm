@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /app/
 
 # Copy the binary from the builder stage
-COPY /aspmd /app/
+COPY /aspmd /VERSION /app/
 ENV PATH="$PATH:/app"
 
 # Expose the port the app runs on

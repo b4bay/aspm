@@ -25,13 +25,13 @@ func setupTestDB() *gorm.DB {
 
 func TestCollectHandler(t *testing.T) {
 	db = setupTestDB()
-	reqBody := RequestBody{Data: "test collect data"}
+	reqBody := server.RequestBody{Data: "test collect data"}
 	jsonBody, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/collect", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
-	collectHandler(w, req)
+	server.CollectHandler(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {
@@ -78,7 +78,7 @@ func TestOriginHandler(t *testing.T) {
 			respRecorder := httptest.NewRecorder()
 
 			// Call handler
-			originHandler(respRecorder, req)
+			server.OriginHandler(respRecorder, req)
 
 			// Validate response
 			if respRecorder.Code != tt.expectedStatus {
@@ -122,7 +122,7 @@ func TestGwHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/gw", nil)
 	w := httptest.NewRecorder()
 
-	gwHandler(w, req)
+	server.GWHandler(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {
@@ -151,11 +151,11 @@ func TestInvalidMethods(t *testing.T) {
 
 		switch test.url {
 		case "/api/v1/collect":
-			collectHandler(w, req)
+			server.CollectHandler(w, req)
 		case "/api/v1/origin":
-			originHandler(w, req)
+			server.OriginHandler(w, req)
 		case "/api/v1/gw":
-			gwHandler(w, req)
+			server.GWHandler(w, req)
 		}
 
 		resp := w.Result()

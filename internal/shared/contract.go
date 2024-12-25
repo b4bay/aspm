@@ -94,3 +94,7 @@ type Link struct {
 	Type      ProductionMethod
 	CreatedAt time.Time
 }
+
+type VersionResponse struct {
+	Version string `json:"version"`
+}
