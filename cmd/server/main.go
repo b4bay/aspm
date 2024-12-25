@@ -164,10 +164,29 @@ func gwHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("GW endpoint is functional"))
 }
 
+func uiProductHandler(w http.ResponseWriter, r *http.Request) {
+	// Fetch all products from the database
+	var products []shared.Product
+	if err := db.Find(&products).Error; err != nil {
+		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
+		return
+	}
+
+	// Set the response header to JSON
+	w.Header().Set("Content-Type", "application/json")
+
+	// Marshal the products into JSON and write to the response
+	if err := json.NewEncoder(w).Encode(products); err != nil {
+		http.Error(w, "Failed to encode products to JSON", http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
-	http.HandleFunc("/api/v1/collect", collectHandler)
-	http.HandleFunc("/api/v1/origin", originHandler)
-	http.HandleFunc("/api/v1/gw", gwHandler)
+	http.HandleFunc("POST /api/v1/collect", collectHandler)
+	http.HandleFunc("POST /api/v1/origin", originHandler)
+	http.HandleFunc("GET /api/v1/gw", gwHandler)
+	http.HandleFunc("GET /api/v1/ui/product", uiProductHandler)
 
 	fmt.Println("Server is running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
