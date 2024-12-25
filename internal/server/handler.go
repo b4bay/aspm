@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -170,7 +171,7 @@ func UIVersionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a response with the version content
-	version := string(data)
+	version := strings.TrimSuffix(string(data), "\n")
 
 	// Prepare the response struct
 	response := shared.VersionResponse{
