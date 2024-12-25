@@ -65,3 +65,44 @@ func IdBin(path string) (string, error) {
 	hash := hex.EncodeToString(hasher.Sum(nil))
 	return strings.TrimSpace(hash), nil
 }
+
+func NameGit(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if !info.IsDir() {
+		return "", errors.New("not a directory")
+	}
+
+	// Check if the directory is a git repository
+	gitDir := filepath.Join(path, ".git")
+	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+		return "", errors.New("not a git repository")
+	}
+
+	cmd := exec.Command("git", "symbolic-ref", "HEAD")
+	cmd.Dir = path
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+func NameBin(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if info.IsDir() {
+		fmt.Printf("Error: '%s' is not a file\n", path)
+		return "", errors.New("not a file")
+	}
+
+	name := filepath.Base(path)
+	return name, nil
+}

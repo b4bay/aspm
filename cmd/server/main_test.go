@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
+	"github.com/b4bay/aspm/internal/server"
+	"github.com/b4bay/aspm/internal/shared"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,22 +14,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func setupTestDB() *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
+func setupTestDB() *gorm.DB {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
-		panic(err)
+		panic("failed to connect to in-memory database")
 	}
-
-	createTableQuery := `CREATE TABLE IF NOT EXISTS requests (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		method TEXT NOT NULL,
-		data TEXT NOT NULL
-	)`
-	_, err = db.Exec(createTableQuery)
-	if err != nil {
-		panic(err)
-	}
-
+	db.AutoMigrate(&shared.Product{}, &shared.Link{})
 	return db
 }
 
@@ -44,33 +37,84 @@ func TestCollectHandler(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status OK, got %v", resp.StatusCode)
 	}
-
-	var count int
-	err := db.QueryRow(`SELECT COUNT(*) FROM requests WHERE method = 'collect' AND data = ?`, reqBody.Data).Scan(&count)
-	if err != nil || count != 1 {
-		t.Errorf("expected one record in database, got %d", count)
-	}
 }
 
 func TestOriginHandler(t *testing.T) {
 	db = setupTestDB()
-	reqBody := RequestBody{Data: "test origin data"}
-	jsonBody, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/origin", bytes.NewBuffer(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
 
-	originHandler(w, req)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status OK, got %v", resp.StatusCode)
+	tests := []struct {
+		name           string
+		requestBody    shared.OriginMessageBody
+		expectedStatus int
+	}{
+		{
+			name: "Valid request",
+			requestBody: shared.OriginMessageBody{
+				Environment: map[string]string{
+					"CI_PROJECT_PATH":       "b4bay/read-it-later-be",
+					"GITLAB_USER_NAME":      "Alex Goncharov",
+					"CI_RUNNER_DESCRIPTION": "4-blue.saas-linux-small-amd64.runners-manager.gitlab.com/default",
+				},
+				ProductName: "product.name",
+				ProductType: shared.ArtefactTypeGit,
+				ProductId:   "product-123",
+				OriginIds:   []string{"origin-1", "origin-2"},
+				ProdMethod:  shared.ProductionMethodCompile,
+			},
+			expectedStatus: http.StatusOK,
+		},
 	}
 
-	var count int
-	err := db.QueryRow(`SELECT COUNT(*) FROM requests WHERE method = 'origin' AND data = ?`, reqBody.Data).Scan(&count)
-	if err != nil || count != 1 {
-		t.Errorf("expected one record in database, got %d", count)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Prepare request body
+			body, err := json.Marshal(tt.requestBody)
+			if err != nil {
+				t.Fatalf("Failed to marshal request body: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/origin", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			respRecorder := httptest.NewRecorder()
+
+			// Call handler
+			originHandler(respRecorder, req)
+
+			// Validate response
+			if respRecorder.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, respRecorder.Code)
+			}
+
+			if tt.expectedStatus == http.StatusOK {
+				// Validate database entries
+				var product shared.Product
+				if err := db.First(&product, "id = ?", tt.requestBody.ProductId).Error; err != nil {
+					t.Errorf("Product not found in database: %v", err)
+				}
+
+				if product.Project != server.GetProjectFromEnvironment(tt.requestBody.Environment) ||
+					product.Author != server.GetAuthorFromEnvironment(tt.requestBody.Environment) ||
+					product.Worker != server.GetWorkerFromEnvironment(tt.requestBody.Environment) {
+					t.Errorf("Product fields not properly populated: %+v", product)
+				}
+
+				for _, originID := range tt.requestBody.OriginIds {
+					var origin shared.Product
+					if err := db.First(&origin, "id = ?", originID).Error; err != nil {
+						t.Errorf("Origin not found in database: %v", err)
+					}
+				}
+
+				var links []shared.Link
+				if err := db.Where("product_id = ?", tt.requestBody.ProductId).Find(&links).Error; err != nil {
+					t.Errorf("Failed to find links in database: %v", err)
+				}
+
+				if len(links) != len(tt.requestBody.OriginIds) {
+					t.Errorf("Expected %d links, got %d", len(tt.requestBody.OriginIds), len(links))
+				}
+			}
+		})
 	}
 }
 

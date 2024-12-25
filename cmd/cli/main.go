@@ -136,10 +136,11 @@ func handleOriginMode(args []string) {
 	var productArtefactType shared.ArtefactType
 	var originPayload shared.OriginMessageBody
 	var (
-		product   string
-		productId string
-		origins   []string
-		originIds []string
+		product     string
+		productId   string
+		productName string
+		origins     []string
+		originIds   []string
 	)
 
 	fs := flag.NewFlagSet(string(shared.CliModeOrigin), flag.ExitOnError)
@@ -183,13 +184,23 @@ func handleOriginMode(args []string) {
 	if productArtefactType == shared.ArtefactTypeGit {
 		productId, err = cli.IdGit(product)
 		if err != nil {
-			fmt.Printf("Error: Invalid product '%s: %v'\n", product, err)
+			fmt.Printf("Error: Invalid product (id) '%s': %v\n", product, err)
+			Exit(1)
+		}
+		productName, err = cli.NameGit(product)
+		if err != nil {
+			fmt.Printf("Error: Invalid product (name) '%s': %v\n", product, err)
 			Exit(1)
 		}
 	} else if productArtefactType == shared.ArtefactTypeBin {
 		productId, err = cli.IdBin(product)
 		if err != nil {
-			fmt.Printf("Error: Invalid product '%s: %v'\n", product, err)
+			fmt.Printf("Error: Invalid product (id) '%s': %v\n", product, err)
+			Exit(1)
+		}
+		productName, err = cli.NameBin(product)
+		if err != nil {
+			fmt.Printf("Error: Invalid product (name) '%s': %v\n", product, err)
 			Exit(1)
 		}
 	}
@@ -217,8 +228,10 @@ func handleOriginMode(args []string) {
 	}
 
 	originPayload.ProductId = productId
+	originPayload.ProductName = productName
 	originPayload.OriginIds = originIds
 	originPayload.ProdMethod = productionMethod
+	originPayload.ProductType = productArtefactType
 	originPayload.Environment = cli.GetEnvironment()
 
 	aspmClient.Post("/"+string(shared.CliModeOrigin), originPayload)

@@ -1,5 +1,7 @@
 package shared
 
+import "time"
+
 type CliMode string
 
 const (
@@ -61,6 +63,8 @@ func IsValidProductionMethod(productionMethod ProductionMethod) bool {
 type OriginMessageBody struct {
 	Environment map[string]string `json:"environment"`
 	ProductId   string            `json:"product_id"`
+	ProductName string            `json:"product_name"`
+	ProductType ArtefactType      `json:"product_type"`
 	OriginIds   []string          `json:"origin_ids"`
 	ProdMethod  ProductionMethod  `json:"production_method"`
 }
@@ -69,4 +73,24 @@ type CollectMessageBody struct {
 	Environment map[string]string `json:"environment"`
 	ArtefactId  string            `json:"artefact_id"`
 	Reports     map[string]string `json:"reports"`
+}
+
+type Product struct {
+	ID        string `gorm:"primaryKey"`
+	Name      string
+	Type      ArtefactType
+	Project   string
+	Author    string
+	Worker    string
+	CreatedAt time.Time
+}
+
+type Link struct {
+	ID        uint    `gorm:"primaryKey"`
+	ProductID string  `gorm:"index"`
+	Product   Product `gorm:"constraint:OnDelete:CASCADE;"`
+	OriginID  string  `gorm:"index"`
+	Origin    Product `gorm:"constraint:OnDelete:CASCADE;"`
+	Type      ProductionMethod
+	CreatedAt time.Time
 }
