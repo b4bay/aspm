@@ -52,5 +52,15 @@ func GetAuthorFromGit() string {
 		return ""
 	}
 
-	return strings.TrimSpace(string(output))
+	author := strings.TrimSpace(string(output))
+
+	// Remove leading and trailing quotes
+	if len(author) > 0 && author[0] == '\'' {
+		author = author[1:]
+	}
+	if len(author) > 0 && author[len(author)-1] == '\'' {
+		author = author[:len(author)-1]
+	}
+
+	return author
 }
