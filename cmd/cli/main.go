@@ -132,21 +132,26 @@ func handleGWMode(args []string) {
 func handleOriginMode(args []string) {
 	var err error
 	var productionMethod shared.ProductionMethod
-	var originArtefactType shared.ArtefactType
-	var productArtefactType shared.ArtefactType
 	var originPayload shared.OriginMessageBody
 	var (
-		product     string
-		productId   string
-		productName string
-		origins     []string
-		originIds   []string
+		productPath         string
+		productId           string
+		productName         string
+		productInfo         os.FileInfo
+		productArtefactType shared.ArtefactType
+		origins             []shared.ProductMessage
+		originsPath         []string
+		originPath          string
+		originId            string
+		originName          string
+		originInfo          os.FileInfo
+		originArtefactType  shared.ArtefactType
 	)
 
 	fs := flag.NewFlagSet(string(shared.CliModeOrigin), flag.ExitOnError)
 	method := fs.String("method", string(shared.ProductionMethodDefault), "Method (compile or pack)")
-	from := fs.String("from", string(shared.ArtefactTypeDefault), "Origin artefact type")
-	to := fs.String("to", string(shared.ArtefactTypeDefault), "Product artefact type")
+	//from := fs.String("from", string(shared.ArtefactTypeDefault), "Origin artefact type")
+	//to := fs.String("to", string(shared.ArtefactTypeDefault), "Product artefact type")
 	fs.Parse(args)
 
 	unnamed := fs.Args()
@@ -154,8 +159,8 @@ func handleOriginMode(args []string) {
 		fmt.Println("Error: at least artefact and one origin required")
 		Exit(1)
 	} else {
-		product = unnamed[0]
-		origins = unnamed[1:]
+		productPath = unnamed[0]
+		originsPath = unnamed[1:]
 	}
 
 	if shared.IsValidProductionMethod(shared.ProductionMethod(*method)) {
@@ -165,73 +170,118 @@ func handleOriginMode(args []string) {
 		Exit(1)
 	}
 
-	if shared.IsValidArtefactType(shared.ArtefactType(*from)) {
-		originArtefactType = shared.ArtefactType(*from)
-	} else {
-		fmt.Printf("Error: Invalid origin type '%s'", *from)
+	//if shared.IsValidArtefactType(shared.ArtefactType(*from)) {
+	//	originArtefactType = shared.ArtefactType(*from)
+	//} else {
+	//	fmt.Printf("Error: Invalid origin type '%s'", *from)
+	//	Exit(1)
+	//}
+
+	//if shared.IsValidArtefactType(shared.ArtefactType(*to)) {
+	//	productArtefactType = shared.ArtefactType(*to)
+	//} else {
+	//	fmt.Printf("Error: Invalid product type '%s'", *to)
+	//	Exit(1)
+	//}
+
+	//fmt.Printf("Running in 'origin' mode: method=%s, from=%s, to=%s, artefact=%s, sources=%v\n", *method, *from, *to, product, origins)
+	fmt.Printf("Running in 'origin' mode: method=%s, product=%s, origins=%v\n", *method, productPath, originsPath)
+
+	// Processing Product
+	productInfo, err = os.Stat(productPath)
+	if os.IsNotExist(err) {
+		fmt.Printf("Error: Product not found '%s'", productPath)
 		Exit(1)
 	}
 
-	if shared.IsValidArtefactType(shared.ArtefactType(*to)) {
-		productArtefactType = shared.ArtefactType(*to)
+	if productInfo.IsDir() {
+		productArtefactType = shared.ArtefactTypeGit
 	} else {
-		fmt.Printf("Error: Invalid product type '%s'", *to)
-		Exit(1)
+		productArtefactType = shared.ArtefactTypeBin
 	}
-
-	fmt.Printf("Running in 'origin' mode: method=%s, from=%s, to=%s, artefact=%s, sources=%v\n", *method, *from, *to, product, origins)
 
 	if productArtefactType == shared.ArtefactTypeGit {
-		productId, err = cli.IdGit(product)
+		productId, err = cli.IdGit(productPath)
 		if err != nil {
-			fmt.Printf("Error: Invalid product (id) '%s': %v\n", product, err)
+			fmt.Printf("Error: Invalid product (id) '%s': %v\n", productPath, err)
 			Exit(1)
 		}
-		productName, err = cli.NameGit(product)
+		productName, err = cli.NameGit(productPath)
 		if err != nil {
-			fmt.Printf("Error: Invalid product (name) '%s': %v\n", product, err)
-			Exit(1)
-		}
-	} else if productArtefactType == shared.ArtefactTypeBin {
-		productId, err = cli.IdBin(product)
-		if err != nil {
-			fmt.Printf("Error: Invalid product (id) '%s': %v\n", product, err)
-			Exit(1)
-		}
-		productName, err = cli.NameBin(product)
-		if err != nil {
-			fmt.Printf("Error: Invalid product (name) '%s': %v\n", product, err)
+			fmt.Printf("Error: Invalid product (name) '%s': %v\n", productPath, err)
 			Exit(1)
 		}
 	}
 
-	if originArtefactType == shared.ArtefactTypeGit {
-		for _, origin := range origins {
-			originId, err := cli.IdGit(origin)
-			if err != nil {
-				fmt.Printf("Error: Invalid origin '%s: %v'\n", origin, err)
-				Exit(1)
-			} else {
-				originIds = append(originIds, originId)
-			}
+	if productArtefactType == shared.ArtefactTypeBin {
+		productId, err = cli.IdBin(productPath)
+		if err != nil {
+			fmt.Printf("Error: Invalid product (id) '%s': %v\n", productPath, err)
+			Exit(1)
 		}
-	} else if originArtefactType == shared.ArtefactTypeBin {
-		for _, origin := range origins {
-			originId, err := cli.IdBin(origin)
-			if err != nil {
-				fmt.Printf("Error: Invalid origin '%s: %v'\n", origin, err)
-				Exit(1)
-			} else {
-				originIds = append(originIds, originId)
-			}
+		productName, err = cli.NameBin(productPath)
+		if err != nil {
+			fmt.Printf("Error: Invalid product (name) '%s': %v\n", productPath, err)
+			Exit(1)
 		}
 	}
 
-	originPayload.ProductId = productId
-	originPayload.ProductName = productName
-	originPayload.OriginIds = originIds
-	originPayload.ProdMethod = productionMethod
-	originPayload.ProductType = productArtefactType
+	// Processing Origins
+	for _, originPath = range originsPath {
+		originInfo, err = os.Stat(originPath)
+		if os.IsNotExist(err) {
+			fmt.Printf("Error: Origin not found '%s'", originPath)
+			Exit(1)
+		}
+
+		if originInfo.IsDir() {
+			originArtefactType = shared.ArtefactTypeGit
+		} else {
+			originArtefactType = shared.ArtefactTypeBin
+		}
+
+		if originArtefactType == shared.ArtefactTypeGit {
+			originId, err = cli.IdGit(originPath)
+			if err != nil {
+				fmt.Printf("Error: Invalid origin (id) '%s': %v\n", originPath, err)
+				Exit(1)
+			}
+
+			originName, err = cli.NameGit(originPath)
+			if err != nil {
+				fmt.Printf("Error: Invalid origin (name) '%s': %v\n", originPath, err)
+				Exit(1)
+			}
+
+		}
+
+		if originArtefactType == shared.ArtefactTypeBin {
+			originId, err = cli.IdBin(originPath)
+			if err != nil {
+				fmt.Printf("Error: Invalid origin (id) '%s': %v\n", originPath, err)
+				Exit(1)
+			}
+
+			originName, err = cli.NameBin(originPath)
+			if err != nil {
+				fmt.Printf("Error: Invalid origin (name) '%s': %v\n", originPath, err)
+				Exit(1)
+			}
+
+		}
+
+		origins = append(origins, shared.ProductMessage{
+			Id:   originId,
+			Name: originName,
+			Type: originArtefactType,
+		})
+	}
+
+	originPayload.Product.Id = productId
+	originPayload.Product.Name = productName
+	originPayload.Product.Type = productArtefactType
+	originPayload.Origins = origins
+	originPayload.ProductionMethod = productionMethod
 	originPayload.Environment = cli.GetEnvironment()
 
 	aspmClient.Post("/"+string(shared.CliModeOrigin), originPayload)

@@ -46,8 +46,8 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.ProdMethod == "" {
-		body.ProdMethod = shared.ProductionMethodDefault
+	if body.ProductionMethod == "" {
+		body.ProductionMethod = shared.ProductionMethodDefault
 	}
 
 	var project = GetProjectFromEnvironment(body.Environment)
@@ -58,13 +58,7 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 		// Ensure Product exists
 		var product shared.Product
 		if err := tx.FirstOrCreate(&product, shared.Product{
-			ID:        body.ProductId,
-			CreatedAt: time.Now(),
-			Name:      body.ProductName,
-			Type:      body.ProductType,
-			Project:   project,
-			Author:    author,
-			Worker:    worker,
+			ID: body.Product.Id,
 		}).Error; err != nil {
 			http.Error(w, "Failed to create or find product", http.StatusInternalServerError)
 			return err
@@ -72,12 +66,16 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 
 		var needToUpdate = false
 		// Check and update empty fields in Product
-		if product.Name == "" && body.ProductName != "" {
-			product.Name = body.ProductName
+		if product.CreatedAt.IsZero() {
+			product.CreatedAt = time.Now()
 			needToUpdate = true
 		}
-		if product.Type == "" && body.ProductType != "" {
-			product.Type = body.ProductType
+		if product.Name == "" && body.Product.Name != "" {
+			product.Name = body.Product.Name
+			needToUpdate = true
+		}
+		if product.Type == "" && body.Product.Type != "" {
+			product.Type = body.Product.Type
 			needToUpdate = true
 		}
 		if product.Project == "" && project != "" {
@@ -102,26 +100,63 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Process OriginIds and create Links
-		for _, originID := range body.OriginIds {
+		for _, o := range body.Origins {
 			var origin shared.Product
 			if err := tx.FirstOrCreate(&origin, shared.Product{
-				ID:        originID,
-				CreatedAt: time.Now(),
+				ID: o.Id,
 			}).Error; err != nil {
 				http.Error(w, "Failed to create or find origin", http.StatusInternalServerError)
 				return err
 			}
 
-			link := shared.Link{
+			needToUpdate = false
+			// Check and update empty fields in Product
+			if origin.CreatedAt.IsZero() {
+				origin.CreatedAt = time.Now()
+				needToUpdate = true
+			}
+			if origin.Name == "" && o.Name != "" {
+				origin.Name = o.Name
+				needToUpdate = true
+			}
+			if origin.Type == "" && o.Type != "" {
+				origin.Type = o.Type
+				needToUpdate = true
+			}
+
+			// Save updated product if necessary
+			if needToUpdate {
+				if err := tx.Save(&origin).Error; err != nil {
+					http.Error(w, "Failed to update origin", http.StatusInternalServerError)
+					return err
+				}
+			}
+
+			var link = shared.Link{}
+			if err := tx.FirstOrCreate(&link, shared.Link{
 				ProductID: product.ID,
 				OriginID:  origin.ID,
-				Type:      body.ProdMethod,
-				CreatedAt: time.Now(),
-			}
-			if err := tx.Create(&link).Error; err != nil {
-				http.Error(w, "Failed to create link", http.StatusInternalServerError)
+				Type:      body.ProductionMethod,
+			}).Error; err != nil {
+				http.Error(w, "Failed to create or find link", http.StatusInternalServerError)
 				return err
 			}
+
+			needToUpdate = false
+			// Check and update empty fields in Product
+			if link.CreatedAt.IsZero() {
+				link.CreatedAt = time.Now()
+				needToUpdate = true
+			}
+
+			// Save updated link if necessary
+			if needToUpdate {
+				if err := tx.Save(&link).Error; err != nil {
+					http.Error(w, "Failed to update link", http.StatusInternalServerError)
+					return err
+				}
+			}
+
 		}
 
 		return nil

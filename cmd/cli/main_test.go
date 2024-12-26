@@ -151,7 +151,7 @@ func TestOriginMode(t *testing.T) {
 	artefactPath3 := createTempFileWithContent(t, "This is an artefact file 3.")
 	defer os.Remove(artefactPath3)
 
-	os.Args = []string{"main", "origin", "-method", "pack", "-from", "bin", "-to", "bin", artefactPath1, artefactPath2, artefactPath3}
+	os.Args = []string{"main", "origin", "-method", "pack", artefactPath1, artefactPath2, artefactPath3}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -182,7 +182,7 @@ func TestOriginModeValidGit(t *testing.T) {
 	}
 
 	// Test valid artefact as a Git repository
-	os.Args = []string{"main", "origin", "-to", "git", "-from", "git", tempDir, tempDir}
+	os.Args = []string{"main", "origin", tempDir, tempDir}
 	stdout, stderr := captureOutput(func() { main() })
 
 	if stderr != "" {
@@ -200,7 +200,7 @@ func TestOriginModeInvalidGit(t *testing.T) {
 
 	nonGitDir := t.TempDir()
 	// Test invalid artefact as non-Git repository
-	os.Args = []string{"main", "origin", "-to", "git", "-from", "git", nonGitDir, nonGitDir}
+	os.Args = []string{"main", "origin", nonGitDir, nonGitDir}
 	stdout, _ := captureOutput(func() { main() })
 
 	if exitCode == 0 {
@@ -238,7 +238,7 @@ func TestOriginMode_FileHashing(t *testing.T) {
 	source2Path := createTempFileWithContent(t, "Source file 2 content.")
 	defer os.Remove(source2Path)
 
-	os.Args = []string{"main", "origin", "-to", "bin", "-from", "bin", artefactPath, source1Path, source2Path}
+	os.Args = []string{"main", "origin", artefactPath, source1Path, source2Path}
 	stdout, stderr := captureOutput(func() { main() })
 
 	if stderr != "" {

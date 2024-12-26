@@ -55,11 +55,16 @@ func TestOriginHandler(t *testing.T) {
 					"GITLAB_USER_NAME":      "Alex Goncharov",
 					"CI_RUNNER_DESCRIPTION": "4-blue.saas-linux-small-amd64.runners-manager.gitlab.com/default",
 				},
-				ProductName: "product.name",
-				ProductType: shared.ArtefactTypeGit,
-				ProductId:   "product-123",
-				OriginIds:   []string{"origin-1", "origin-2"},
-				ProdMethod:  shared.ProductionMethodCompile,
+				Product: shared.ProductMessage{
+					Name: "product.name",
+					Type: shared.ArtefactTypeBin,
+					Id:   "product-123",
+				},
+				Origins: []shared.ProductMessage{
+					{Id: "origin-1", Name: "main", Type: shared.ArtefactTypeGit},
+					{Id: "origin-2", Name: "library.so", Type: shared.ArtefactTypeBin},
+				},
+				ProductionMethod: shared.ProductionMethodCompile,
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -88,7 +93,7 @@ func TestOriginHandler(t *testing.T) {
 			if tt.expectedStatus == http.StatusOK {
 				// Validate database entries
 				var product shared.Product
-				if err := db.First(&product, "id = ?", tt.requestBody.ProductId).Error; err != nil {
+				if err := db.First(&product, "id = ?", tt.requestBody.Product.Id).Error; err != nil {
 					t.Errorf("Product not found in database: %v", err)
 				}
 
@@ -98,20 +103,20 @@ func TestOriginHandler(t *testing.T) {
 					t.Errorf("Product fields not properly populated: %+v", product)
 				}
 
-				for _, originID := range tt.requestBody.OriginIds {
+				for _, o := range tt.requestBody.Origins {
 					var origin shared.Product
-					if err := db.First(&origin, "id = ?", originID).Error; err != nil {
+					if err := db.First(&origin, "id = ?", o.Id).Error; err != nil {
 						t.Errorf("Origin not found in database: %v", err)
 					}
 				}
 
 				var links []shared.Link
-				if err := db.Where("product_id = ?", tt.requestBody.ProductId).Find(&links).Error; err != nil {
+				if err := db.Where("product_id = ?", tt.requestBody.Product.Id).Find(&links).Error; err != nil {
 					t.Errorf("Failed to find links in database: %v", err)
 				}
 
-				if len(links) != len(tt.requestBody.OriginIds) {
-					t.Errorf("Expected %d links, got %d", len(tt.requestBody.OriginIds), len(links))
+				if len(links) != len(tt.requestBody.Origins) {
+					t.Errorf("Expected %d links, got %d", len(tt.requestBody.Origins), len(links))
 				}
 			}
 		})

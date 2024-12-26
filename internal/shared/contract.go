@@ -60,13 +60,17 @@ func IsValidProductionMethod(productionMethod ProductionMethod) bool {
 	return false
 }
 
+type ProductMessage struct {
+	Id   string       `json:"id"`
+	Name string       `json:"name"`
+	Type ArtefactType `json:"type"`
+}
+
 type OriginMessageBody struct {
-	Environment map[string]string `json:"environment"`
-	ProductId   string            `json:"product_id"`
-	ProductName string            `json:"product_name"`
-	ProductType ArtefactType      `json:"product_type"`
-	OriginIds   []string          `json:"origin_ids"`
-	ProdMethod  ProductionMethod  `json:"production_method"`
+	Environment      map[string]string `json:"environment"`
+	Product          ProductMessage    `json:"product"`
+	Origins          []ProductMessage  `json:"origins"`
+	ProductionMethod ProductionMethod  `json:"production_method"`
 }
 
 type CollectMessageBody struct {
