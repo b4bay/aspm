@@ -30,7 +30,7 @@ func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
 	var links []shared.Link
-	if err := DB.Select("*").Find(&links).Error; err != nil {
+	if err := DB.Omit("Product", "Origin").Find(&links).Error; err != nil {
 		http.Error(w, "Failed to fetch links", http.StatusInternalServerError)
 		return
 	}
