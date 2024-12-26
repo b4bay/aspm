@@ -82,12 +82,18 @@ func NameGit(path string) (string, error) {
 		return "", errors.New("not a git repository")
 	}
 
-	cmd := exec.Command("git", "symbolic-ref", "HEAD")
-	cmd.Dir = path
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", err
-	}
+	// Gitlab cannot work with `git symbolic-ref HEAD` without additional checkout
+	// https://stackoverflow.com/questions/69267025/detached-head-in-gitlab-ci-pipeline-how-to-push-correctly/69268083#69268083
+	// Replaced with CI_COMMIT_REF_NAME approach
+	/*
+		cmd := exec.Command("git", "symbolic-ref", "HEAD")
+		cmd.Dir = path
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", err
+		}
+	*/
+	output := os.Getenv("CI_COMMIT_REF_NAME")
 
 	return strings.TrimSpace(string(output)), nil
 }

@@ -170,21 +170,6 @@ func handleOriginMode(args []string) {
 		Exit(1)
 	}
 
-	//if shared.IsValidArtefactType(shared.ArtefactType(*from)) {
-	//	originArtefactType = shared.ArtefactType(*from)
-	//} else {
-	//	fmt.Printf("Error: Invalid origin type '%s'", *from)
-	//	Exit(1)
-	//}
-
-	//if shared.IsValidArtefactType(shared.ArtefactType(*to)) {
-	//	productArtefactType = shared.ArtefactType(*to)
-	//} else {
-	//	fmt.Printf("Error: Invalid product type '%s'", *to)
-	//	Exit(1)
-	//}
-
-	//fmt.Printf("Running in 'origin' mode: method=%s, from=%s, to=%s, artefact=%s, sources=%v\n", *method, *from, *to, product, origins)
 	fmt.Printf("Running in 'origin' mode: method=%s, product=%s, origins=%v\n", *method, productPath, originsPath)
 
 	// Processing Product
