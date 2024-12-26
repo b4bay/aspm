@@ -51,8 +51,13 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var project = GetProjectFromEnvironment(body.Environment)
-	var author = GetAuthorFromEnvironment(body.Environment)
 	var worker = GetWorkerFromEnvironment(body.Environment)
+	var author string
+	if body.Product.Author != "" {
+		author = body.Product.Author
+	} else {
+		author = GetAuthorFromEnvironment(body.Environment)
+	}
 
 	DB.Transaction(func(tx *gorm.DB) error {
 		// Ensure Product exists
@@ -121,6 +126,10 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			if origin.Type == "" && o.Type != "" {
 				origin.Type = o.Type
+				needToUpdate = true
+			}
+			if origin.Author == "" && o.Author != "" {
+				origin.Author = o.Author
 				needToUpdate = true
 			}
 

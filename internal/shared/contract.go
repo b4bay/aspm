@@ -61,9 +61,10 @@ func IsValidProductionMethod(productionMethod ProductionMethod) bool {
 }
 
 type ProductMessage struct {
-	Id   string       `json:"id"`
-	Name string       `json:"name"`
-	Type ArtefactType `json:"type"`
+	Id     string       `json:"id"`
+	Name   string       `json:"name"`
+	Type   ArtefactType `json:"type"`
+	Author string       `json:"author"`
 }
 
 type OriginMessageBody struct {

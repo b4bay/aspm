@@ -1,6 +1,8 @@
 package server
 
-import "strings"
+import (
+	"strings"
+)
 
 func GetProjectFromEnvironment(e map[string]string) string {
 	project, ok := e["CI_PROJECT_PATH"]

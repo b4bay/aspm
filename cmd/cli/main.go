@@ -137,6 +137,7 @@ func handleOriginMode(args []string) {
 		productPath         string
 		productId           string
 		productName         string
+		productAuthor       string
 		productInfo         os.FileInfo
 		productArtefactType shared.ArtefactType
 		origins             []shared.ProductMessage
@@ -144,6 +145,7 @@ func handleOriginMode(args []string) {
 		originPath          string
 		originId            string
 		originName          string
+		originAuthor        string
 		originInfo          os.FileInfo
 		originArtefactType  shared.ArtefactType
 	)
@@ -196,6 +198,7 @@ func handleOriginMode(args []string) {
 			fmt.Printf("Error: Invalid product (name) '%s': %v\n", productPath, err)
 			Exit(1)
 		}
+		productAuthor = cli.GetAuthorFromGit()
 	}
 
 	if productArtefactType == shared.ArtefactTypeBin {
@@ -231,13 +234,12 @@ func handleOriginMode(args []string) {
 				fmt.Printf("Error: Invalid origin (id) '%s': %v\n", originPath, err)
 				Exit(1)
 			}
-
 			originName, err = cli.NameGit(originPath)
 			if err != nil {
 				fmt.Printf("Error: Invalid origin (name) '%s': %v\n", originPath, err)
 				Exit(1)
 			}
-
+			originAuthor = cli.GetAuthorFromGit()
 		}
 
 		if originArtefactType == shared.ArtefactTypeBin {
@@ -256,15 +258,17 @@ func handleOriginMode(args []string) {
 		}
 
 		origins = append(origins, shared.ProductMessage{
-			Id:   originId,
-			Name: originName,
-			Type: originArtefactType,
+			Id:     originId,
+			Name:   originName,
+			Type:   originArtefactType,
+			Author: originAuthor,
 		})
 	}
 
 	originPayload.Product.Id = productId
 	originPayload.Product.Name = productName
 	originPayload.Product.Type = productArtefactType
+	originPayload.Product.Author = productAuthor
 	originPayload.Origins = origins
 	originPayload.ProductionMethod = productionMethod
 	originPayload.Environment = cli.GetEnvironment()

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -41,4 +42,15 @@ func GetReports(paths []string) map[string]string {
 	}
 
 	return reports
+}
+
+func GetAuthorFromGit() string {
+	cmd := exec.Command("git", "log", "-1", "--pretty=format:'%an'")
+	cmd.Dir = "."
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(output))
 }
