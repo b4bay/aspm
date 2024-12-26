@@ -30,16 +30,28 @@ func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
 	var links []shared.Link
-	if err := DB.Omit("Product", "Origin").Find(&links).Error; err != nil {
+	if err := DB.Find(&links).Error; err != nil {
 		http.Error(w, "Failed to fetch links", http.StatusInternalServerError)
 		return
+	}
+
+	// Map links to LinkResponse
+	var linkResponses []shared.LinkResponse
+	for _, link := range links {
+		linkResponses = append(linkResponses, shared.LinkResponse{
+			ID:        link.ID,
+			ProductID: link.ProductID,
+			OriginID:  link.OriginID,
+			Type:      link.Type,
+			CreatedAt: link.CreatedAt,
+		})
 	}
 
 	// Set the response header to JSON
 	w.Header().Set("Content-Type", "application/json")
 
 	// Marshal the links into JSON and write to the response
-	if err := json.NewEncoder(w).Encode(links); err != nil {
+	if err := json.NewEncoder(w).Encode(linkResponses); err != nil {
 		http.Error(w, "Failed to encode links to JSON", http.StatusInternalServerError)
 		return
 	}

@@ -101,6 +101,14 @@ type Link struct {
 	Origin  Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:OriginID;references:ID"`
 }
 
+type LinkResponse struct {
+	ID        uint             `json:"id"`
+	ProductID string           `json:"product_id"`
+	OriginID  string           `json:"origin_id"`
+	Type      ProductionMethod `json:"type"`
+	CreatedAt time.Time        `json:"created_at"`
+}
+
 type VersionResponse struct {
 	Version string `json:"version"`
 }
