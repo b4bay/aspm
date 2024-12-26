@@ -91,13 +91,14 @@ type Product struct {
 }
 
 type Link struct {
-	ID        uint    `gorm:"primaryKey"`
-	ProductID string  `gorm:"index"`
-	Product   Product `gorm:"constraint:OnDelete:CASCADE;"`
-	OriginID  string  `gorm:"index"`
-	Origin    Product `gorm:"constraint:OnDelete:CASCADE;"`
+	ID        uint   `gorm:"primaryKey"`
+	ProductID string `gorm:"index;not null"`
+	OriginID  string `gorm:"index;not null"`
 	Type      ProductionMethod
 	CreatedAt time.Time
+	// Associations
+	Product Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:ProductID;references:ID"`
+	Origin  Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:OriginID;references:ID"`
 }
 
 type VersionResponse struct {
