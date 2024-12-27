@@ -110,6 +110,16 @@ type Product struct {
 	CreatedAt time.Time
 }
 
+type ProductResponse struct {
+	ID        string       `json:"id"`
+	Name      string       `json:"name"`
+	Type      ArtefactType `json:"type"`
+	Project   string       `json:"project"`
+	Author    string       `json:"author"`
+	Worker    string       `json:"worker"`
+	CreatedAt time.Time    `json:"created_at"`
+}
+
 type Link struct {
 	ID        uint   `gorm:"primaryKey"`
 	ProductID string `gorm:"index;not null"`

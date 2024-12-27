@@ -17,11 +17,25 @@ func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Map products to ProductResponse
+	productResponses := []shared.ProductResponse{}
+	for _, product := range products {
+		productResponses = append(productResponses, shared.ProductResponse{
+			ID:        product.ID,
+			Name:      product.Name,
+			Type:      product.Type,
+			Project:   product.Project,
+			Author:    product.Author,
+			Worker:    product.Worker,
+			CreatedAt: product.CreatedAt,
+		})
+	}
+
 	// Set the response header to JSON
 	w.Header().Set("Content-Type", "application/json")
 
 	// Marshal the products into JSON and write to the response
-	if err := json.NewEncoder(w).Encode(products); err != nil {
+	if err := json.NewEncoder(w).Encode(productResponses); err != nil {
 		http.Error(w, "Failed to encode products to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -36,7 +50,7 @@ func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map links to LinkResponse
-	var linkResponses []shared.LinkResponse
+	linkResponses := []shared.LinkResponse{}
 	for _, link := range links {
 		linkResponses = append(linkResponses, shared.LinkResponse{
 			ID:        link.ID,
@@ -66,7 +80,7 @@ func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map Engagement to EngagementResponse
-	var engagementResponses []shared.EngagementResponse
+	engagementResponses := []shared.EngagementResponse{}
 	for _, engagement := range engagements {
 		engagementResponses = append(engagementResponses, shared.EngagementResponse{
 			ID:           engagement.ID,
