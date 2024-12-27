@@ -23,7 +23,7 @@ func InitDB() error {
 		return err
 	}
 
-	err = DB.AutoMigrate(&shared.Product{}, &shared.Link{})
+	err = DB.AutoMigrate(&shared.Product{}, &shared.Link{}, &shared.Engagement{})
 
 	return err
 }
