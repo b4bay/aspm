@@ -13,19 +13,49 @@ type RequestBody struct {
 }
 
 func CollectHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var body RequestBody
+	var body shared.CollectMessageBody
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	// TODO: Save data
+	for _, report := range body.Reports {
+		DB.Transaction(func(tx *gorm.DB) error {
+			// Ensure Product exists
+			var product shared.Product
+			if err := tx.FirstOrCreate(&product, shared.Product{
+				ID: body.ArtefactId,
+			}).Error; err != nil {
+				http.Error(w, "Failed to create or find product", http.StatusInternalServerError)
+				return err
+			}
+
+			// Check and update empty fields in Product
+			if product.CreatedAt.IsZero() {
+				product.CreatedAt = time.Now()
+				if err := tx.Save(&product).Error; err != nil {
+					http.Error(w, "Failed to update product", http.StatusInternalServerError)
+					return err
+				}
+			}
+
+			// Save Engagement
+			engagement := shared.Engagement{
+				CreatedAt: time.Now(),
+				ProductID: product.ID,
+				Tool:      "unknown", // TODO: Get tool name from report
+				RawReport: report,
+			}
+			if result := tx.Create(&engagement); result.Error != nil {
+				http.Error(w, "Failed to create engagement", http.StatusInternalServerError)
+				return err
+			}
+
+			return nil
+		})
+
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Data collected successfully"))

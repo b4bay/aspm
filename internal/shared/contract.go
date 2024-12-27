@@ -1,6 +1,8 @@
 package shared
 
-import "time"
+import (
+	"time"
+)
 
 type CliMode string
 
@@ -78,6 +80,24 @@ type CollectMessageBody struct {
 	Environment map[string]string `json:"environment"`
 	ArtefactId  string            `json:"artefact_id"`
 	Reports     map[string]string `json:"reports"`
+}
+
+type Engagement struct {
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	ProductID string `gorm:"index;not null"`
+	Tool      string
+	RawReport string
+	// Associations
+	Product Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:ProductID;references:ID"`
+}
+
+type EngagementResponse struct {
+	ID           uint      `json:"id"`
+	ProductID    string    `json:"product_id"`
+	Tool         string    `json:"tool"`
+	ReportLength int       `json:"report_length"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Product struct {

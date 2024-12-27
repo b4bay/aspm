@@ -57,6 +57,36 @@ func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
+	// Fetch all links from the database
+	var engagements []shared.Engagement
+	if err := DB.Find(&engagements).Error; err != nil {
+		http.Error(w, "Failed to fetch engagements", http.StatusInternalServerError)
+		return
+	}
+
+	// Map Engagement to EngagementResponse
+	var engagementResponses []shared.EngagementResponse
+	for _, engagement := range engagements {
+		engagementResponses = append(engagementResponses, shared.EngagementResponse{
+			ID:           engagement.ID,
+			ProductID:    engagement.ProductID,
+			Tool:         engagement.Tool,
+			ReportLength: len(engagement.RawReport),
+			CreatedAt:    engagement.CreatedAt,
+		})
+	}
+
+	// Set the response header to JSON
+	w.Header().Set("Content-Type", "application/json")
+
+	// Marshal the links into JSON and write to the response
+	if err := json.NewEncoder(w).Encode(engagementResponses); err != nil {
+		http.Error(w, "Failed to encode engagements to JSON", http.StatusInternalServerError)
+		return
+	}
+}
+
 func UIVersionHandler(w http.ResponseWriter, r *http.Request) {
 	// Read the VERSION file in the current directory
 	versionFile := "VERSION"

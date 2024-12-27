@@ -52,16 +52,16 @@ func main() {
 func handleCollectMode(args []string) {
 	var artefactType shared.ArtefactType
 	var (
-		artefact   string
-		artefactId string
-		reports    []string
+		artefactPath string
+		artefactId   string
+		artefactInfo os.FileInfo
+		reportsPath  []string
 	)
 
 	var err error
 	var collectPayload shared.CollectMessageBody
 
 	fs := flag.NewFlagSet(string(shared.CliModeCollect), flag.ExitOnError)
-	typ := fs.String("type", string(shared.ArtefactTypeDefault), "Artefact type")
 	fs.Parse(args)
 
 	unnamed := fs.Args()
@@ -69,36 +69,44 @@ func handleCollectMode(args []string) {
 		fmt.Println("Error: at least artefact and one report required")
 		Exit(1)
 	} else {
-		artefact = unnamed[0]
-		reports = unnamed[1:]
+		artefactPath = unnamed[0]
+		reportsPath = unnamed[1:]
 	}
 
-	if shared.IsValidArtefactType(shared.ArtefactType(*typ)) {
-		artefactType = shared.ArtefactType(*typ)
-	} else {
-		fmt.Printf("Error: Invalid artefact type '%s'", *typ)
+	// Processing artefact
+	artefactInfo, err = os.Stat(artefactPath)
+	if os.IsNotExist(err) {
+		fmt.Printf("Error: Product not found '%s'", artefactPath)
 		Exit(1)
 	}
 
+	if artefactInfo.IsDir() {
+		artefactType = shared.ArtefactTypeGit
+	} else {
+		artefactType = shared.ArtefactTypeBin
+	}
+
 	if artefactType == shared.ArtefactTypeGit {
-		artefactId, err = cli.IdGit(artefact)
+		artefactId, err = cli.IdGit(artefactPath)
 		if err != nil {
-			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefact, err)
-			Exit(1)
-		}
-	} else if artefactType == shared.ArtefactTypeBin {
-		artefactId, err = cli.IdBin(artefact)
-		if err != nil {
-			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefact, err)
+			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefactPath, err)
 			Exit(1)
 		}
 	}
 
-	fmt.Printf("Running in 'collect' mode: type=%s, artefact=%s, reports=%v\n", *typ, artefact, reports)
+	if artefactType == shared.ArtefactTypeBin {
+		artefactId, err = cli.IdBin(artefactPath)
+		if err != nil {
+			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefactPath, err)
+			Exit(1)
+		}
+	}
+
+	fmt.Printf("Running in 'collect' mode: artefact=%s, reports=%v\n", artefactPath, reportsPath)
 
 	collectPayload.ArtefactId = artefactId
 	collectPayload.Environment = cli.GetEnvironment()
-	collectPayload.Reports = cli.GetReports(reports)
+	collectPayload.Reports = cli.GetReports(reportsPath)
 
 	aspmClient.Post("/"+string(shared.CliModeCollect), collectPayload)
 }
@@ -152,8 +160,6 @@ func handleOriginMode(args []string) {
 
 	fs := flag.NewFlagSet(string(shared.CliModeOrigin), flag.ExitOnError)
 	method := fs.String("method", string(shared.ProductionMethodDefault), "Method (compile or pack)")
-	//from := fs.String("from", string(shared.ArtefactTypeDefault), "Origin artefact type")
-	//to := fs.String("to", string(shared.ArtefactTypeDefault), "Product artefact type")
 	fs.Parse(args)
 
 	unnamed := fs.Args()

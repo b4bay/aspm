@@ -63,25 +63,16 @@ func captureOutput(f func()) (string, string) {
 	return outBuf.String(), errBuf.String()
 }
 
-// Test default mode ("collect")
-func TestDefaultMode(t *testing.T) {
-	Exit = mockExit
-	os.Args = []string{"main", "-type", "git"}
-
-	stdout, stderr := captureOutput(func() { main() })
-
-	if !strings.Contains(stdout, "Running in 'collect' mode") {
-		t.Fatalf("Expected 'collect' mode to run. Got stdout: %s", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
-	}
-}
-
 // Test explicit "collect" mode
 func TestCollectMode(t *testing.T) {
 	Exit = mockExit
-	os.Args = []string{"main", "collect", "-type", "bin", "/path/to/target", "/path/to/report"}
+	aspmClient = &ASPMClientMock{}
+
+	artefactPath := createTempFileWithContent(t, "This is an artefact file.")
+	defer os.Remove(artefactPath)
+	reportPath := createTempFileWithContent(t, "This is a report file.")
+	defer os.Remove(reportPath)
+	os.Args = []string{"main", "collect", artefactPath, reportPath}
 
 	stdout, stderr := captureOutput(func() { main() })
 
@@ -105,22 +96,6 @@ func TestGWModeValid(t *testing.T) {
 	}
 	if stderr != "" {
 		t.Fatalf("Expected no errors. Got stderr: %s", stderr)
-	}
-}
-
-// Test invalid "type" argument
-func TestInvalidTypeArgument(t *testing.T) {
-	Exit = mockExit
-	os.Args = []string{"main", "collect", "-type", "invalid"}
-
-	stdout, _ := captureOutput(func() { main() })
-
-	if exitCode == 0 {
-		t.Fatalf("Expected non-zero exit code for unknown mode, but got success. Output: %s", string(stdout))
-	}
-
-	if !strings.Contains(string(stdout), "Error: Invalid artefact type 'invalid'") {
-		t.Fatalf("Expected error message for invalid type. Got output: %s", string(stdout))
 	}
 }
 

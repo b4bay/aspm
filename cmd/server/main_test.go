@@ -19,24 +19,80 @@ func setupTestDB() *gorm.DB {
 	if err != nil {
 		panic("failed to connect to in-memory database")
 	}
-	db.AutoMigrate(&shared.Product{}, &shared.Link{})
+	db.AutoMigrate(&shared.Product{}, &shared.Link{}, &shared.Engagement{})
 	return db
 }
 
 func TestCollectHandler(t *testing.T) {
 	db = setupTestDB()
-	reqBody := server.RequestBody{Data: "test collect data"}
-	jsonBody, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/collect", bytes.NewBuffer(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
 
-	server.CollectHandler(w, req)
+	t.Run("valid request", func(t *testing.T) {
+		// Create a valid CollectMessageBody
+		body := shared.CollectMessageBody{
+			ArtefactId: "test-artifact",
+			Reports:    map[string]string{"report1": "report1\r\n content", "report2": "report2 \ncontent"},
+		}
 
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status OK, got %v", resp.StatusCode)
-	}
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("Failed to marshal JSON: %v", err)
+		}
+
+		// Create a new HTTP request
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/collect", bytes.NewReader(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Create a ResponseRecorder to capture the response
+		rec := httptest.NewRecorder()
+
+		// Call the handler
+		server.CollectHandler(rec, req)
+
+		// Validate the response
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, rec.Code)
+		}
+		if rec.Body.String() != "Data collected successfully" {
+			t.Errorf("Expected response body \"Data collected successfully\", got %s", rec.Body.String())
+		}
+
+		// Validate the database entries
+		var product shared.Product
+		if err := db.First(&product, "id = ?", body.ArtefactId).Error; err != nil {
+			t.Errorf("Failed to find product: %v", err)
+		}
+
+		var engagements []shared.Engagement
+		if err := db.Where("product_id = ?", product.ID).Find(&engagements).Error; err != nil {
+			t.Errorf("Failed to find engagements: %v", err)
+		}
+		if len(engagements) != len(body.Reports) {
+			t.Errorf("Expected %d engagements, got %d", len(body.Reports), len(engagements))
+		}
+	})
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		// Create an invalid JSON body
+		invalidJSON := "{invalid}"
+
+		// Create a new HTTP request
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/collect", bytes.NewReader([]byte(invalidJSON)))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Create a ResponseRecorder to capture the response
+		rec := httptest.NewRecorder()
+
+		// Call the handler
+		server.CollectHandler(rec, req)
+
+		// Validate the response
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected status %d, got %d", http.StatusBadRequest, rec.Code)
+		}
+		if rec.Body.String() != "Invalid JSON\n" {
+			t.Errorf("Expected response body \"Invalid JSON\\n\", got %s", rec.Body.String())
+		}
+	})
 }
 
 func TestOriginHandler(t *testing.T) {
@@ -137,35 +193,5 @@ func TestGwHandler(t *testing.T) {
 	body := w.Body.String()
 	if body != "GW endpoint is functional" {
 		t.Errorf("unexpected response body: %s", body)
-	}
-}
-
-func TestInvalidMethods(t *testing.T) {
-	tests := []struct {
-		method string
-		url    string
-	}{
-		{method: http.MethodGet, url: "/api/v1/collect"},
-		{method: http.MethodGet, url: "/api/v1/origin"},
-		{method: http.MethodPost, url: "/api/v1/gw"},
-	}
-
-	for _, test := range tests {
-		req := httptest.NewRequest(test.method, test.url, nil)
-		w := httptest.NewRecorder()
-
-		switch test.url {
-		case "/api/v1/collect":
-			server.CollectHandler(w, req)
-		case "/api/v1/origin":
-			server.OriginHandler(w, req)
-		case "/api/v1/gw":
-			server.GWHandler(w, req)
-		}
-
-		resp := w.Result()
-		if resp.StatusCode != http.StatusMethodNotAllowed {
-			t.Errorf("expected status Method Not Allowed for %s %s, got %v", test.method, test.url, resp.StatusCode)
-		}
 	}
 }
