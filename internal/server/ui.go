@@ -44,7 +44,7 @@ func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
 	var links []Link
-	if err := DB.Find(&links).Error; err != nil {
+	if err := DB.Preload("Product").Find(&links).Error; err != nil {
 		http.Error(w, "Failed to fetch links", http.StatusInternalServerError)
 		return
 	}
@@ -74,7 +74,7 @@ func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all engagements from the database
 	var engagements []Engagement
-	if err := DB.Find(&engagements).Error; err != nil {
+	if err := DB.Preload("Product").Find(&engagements).Error; err != nil {
 		http.Error(w, "Failed to fetch engagements", http.StatusInternalServerError)
 		return
 	}
@@ -104,7 +104,7 @@ func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
 func UIVulnerabilityHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
 	var vulnerabilities []Vulnerability
-	if err := DB.Find(&vulnerabilities).Error; err != nil {
+	if err := DB.Preload("Product").Preload("Engagement").Find(&vulnerabilities).Error; err != nil {
 		http.Error(w, "Failed to fetch vulnerabilities", http.StatusInternalServerError)
 		return
 	}

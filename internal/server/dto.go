@@ -38,14 +38,14 @@ type VersionResponse struct {
 }
 
 type VulnerabilityResponse struct {
-	ID              uint   `json:"id"`
-	VulnerabilityID string `json:"vuln_id"`
-	LocationHash    string `json:"location_hash"`
-	ProductID       string `json:"product_id"`
-	Level           sarif.Level
-	Text            string
-	CWE             string
-	CVE             string
-	EngagementID    uint      `gorm:"index;not null"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID              uint        `json:"id"`
+	VulnerabilityID string      `json:"vuln_id"`
+	LocationHash    string      `json:"location_hash"`
+	ProductID       string      `json:"product_id"`
+	Level           sarif.Level `json:"level"`
+	Text            string      `json:"text"`
+	CWE             string      `json:"cwe"`
+	CVE             string      `json:"cve"`
+	EngagementID    uint        `json:"engagement_id"`
+	CreatedAt       time.Time   `json:"created_at"`
 }
