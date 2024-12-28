@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/b4bay/aspm/internal/shared"
 	"log"
 	"net/http"
 	"os"
@@ -11,17 +10,18 @@ import (
 
 func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all products from the database
-	var products []shared.Product
+	var products []Product
 	if err := DB.Find(&products).Error; err != nil {
 		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
 		return
 	}
 
 	// Map products to ProductResponse
-	productResponses := []shared.ProductResponse{}
+	productResponses := []ProductResponse{}
 	for _, product := range products {
-		productResponses = append(productResponses, shared.ProductResponse{
+		productResponses = append(productResponses, ProductResponse{
 			ID:        product.ID,
+			ProductID: product.ProductID,
 			Name:      product.Name,
 			Type:      product.Type,
 			Project:   product.Project,
@@ -43,19 +43,19 @@ func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 
 func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
-	var links []shared.Link
+	var links []Link
 	if err := DB.Find(&links).Error; err != nil {
 		http.Error(w, "Failed to fetch links", http.StatusInternalServerError)
 		return
 	}
 
 	// Map links to LinkResponse
-	linkResponses := []shared.LinkResponse{}
+	linkResponses := []LinkResponse{}
 	for _, link := range links {
-		linkResponses = append(linkResponses, shared.LinkResponse{
+		linkResponses = append(linkResponses, LinkResponse{
 			ID:        link.ID,
-			ProductID: link.ProductID,
-			OriginID:  link.OriginID,
+			ProductID: link.Product.ProductID,
+			OriginID:  link.Origin.ProductID,
 			Type:      link.Type,
 			CreatedAt: link.CreatedAt,
 		})
@@ -72,19 +72,19 @@ func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
-	// Fetch all links from the database
-	var engagements []shared.Engagement
+	// Fetch all engagements from the database
+	var engagements []Engagement
 	if err := DB.Find(&engagements).Error; err != nil {
 		http.Error(w, "Failed to fetch engagements", http.StatusInternalServerError)
 		return
 	}
 
 	// Map Engagement to EngagementResponse
-	engagementResponses := []shared.EngagementResponse{}
+	engagementResponses := []EngagementResponse{}
 	for _, engagement := range engagements {
-		engagementResponses = append(engagementResponses, shared.EngagementResponse{
+		engagementResponses = append(engagementResponses, EngagementResponse{
 			ID:           engagement.ID,
-			ProductID:    engagement.ProductID,
+			ProductID:    engagement.Product.ProductID,
 			Tool:         engagement.Tool,
 			ReportLength: len(engagement.RawReport),
 			CreatedAt:    engagement.CreatedAt,
@@ -94,8 +94,43 @@ func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
 	// Set the response header to JSON
 	w.Header().Set("Content-Type", "application/json")
 
-	// Marshal the links into JSON and write to the response
+	// Marshal the engagements into JSON and write to the response
 	if err := json.NewEncoder(w).Encode(engagementResponses); err != nil {
+		http.Error(w, "Failed to encode engagements to JSON", http.StatusInternalServerError)
+		return
+	}
+}
+
+func UIVulnerabilityHandler(w http.ResponseWriter, r *http.Request) {
+	// Fetch all links from the database
+	var vulnerabilities []Vulnerability
+	if err := DB.Find(&vulnerabilities).Error; err != nil {
+		http.Error(w, "Failed to fetch vulnerabilities", http.StatusInternalServerError)
+		return
+	}
+
+	// Map Engagement to EngagementResponse
+	vulnerabilityResponses := []VulnerabilityResponse{}
+	for _, vulnerability := range vulnerabilities {
+		vulnerabilityResponses = append(vulnerabilityResponses, VulnerabilityResponse{
+			ID:              vulnerability.ID,
+			VulnerabilityID: vulnerability.VulnerabilityID,
+			ProductID:       vulnerability.Product.ProductID,
+			LocationHash:    vulnerability.LocationHash,
+			Level:           vulnerability.Level,
+			Text:            vulnerability.Text,
+			CWE:             vulnerability.CWE,
+			CVE:             vulnerability.CVE,
+			EngagementID:    vulnerability.Engagement.ID,
+			CreatedAt:       vulnerability.CreatedAt,
+		})
+	}
+
+	// Set the response header to JSON
+	w.Header().Set("Content-Type", "application/json")
+
+	// Marshal the vulnerabilities into JSON and write to the response
+	if err := json.NewEncoder(w).Encode(vulnerabilityResponses); err != nil {
 		http.Error(w, "Failed to encode engagements to JSON", http.StatusInternalServerError)
 		return
 	}
@@ -116,7 +151,7 @@ func UIVersionHandler(w http.ResponseWriter, r *http.Request) {
 	version := strings.TrimSuffix(string(data), "\n")
 
 	// Prepare the response struct
-	response := shared.VersionResponse{
+	response := VersionResponse{
 		Version: version,
 	}
 

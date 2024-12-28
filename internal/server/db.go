@@ -1,7 +1,6 @@
 package server
 
 import (
-	"github.com/b4bay/aspm/internal/shared"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
@@ -23,7 +22,7 @@ func InitDB() error {
 		return err
 	}
 
-	err = DB.AutoMigrate(&shared.Product{}, &shared.Link{}, &shared.Engagement{})
+	err = DB.AutoMigrate(&Product{}, &Link{}, &Engagement{}, &Vulnerability{}, &Status{})
 
 	return err
 }

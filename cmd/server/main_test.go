@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/b4bay/aspm/internal/server"
+	"github.com/b4bay/aspm/internal/server/sarif"
 	"github.com/b4bay/aspm/internal/shared"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -19,7 +20,7 @@ func setupTestDB() *gorm.DB {
 	if err != nil {
 		panic("failed to connect to in-memory database")
 	}
-	db.AutoMigrate(&shared.Product{}, &shared.Link{}, &shared.Engagement{})
+	db.AutoMigrate(&server.Product{}, &server.Link{}, &server.Engagement{}, &server.Vulnerability{}, &server.Status{})
 	return db
 }
 
@@ -30,7 +31,7 @@ func TestCollectHandler(t *testing.T) {
 		// Create a valid CollectMessageBody
 		body := shared.CollectMessageBody{
 			ArtefactId: "test-artifact",
-			Reports:    map[string]string{"report1": "report1\r\n content", "report2": "report2 \ncontent"},
+			Reports:    map[string]string{"gosec.sarif": sarif.MockGosecReport, "govuncheck.sarif": sarif.MockGovulncheckReport},
 		}
 
 		jsonBody, err := json.Marshal(body)
@@ -57,17 +58,27 @@ func TestCollectHandler(t *testing.T) {
 		}
 
 		// Validate the database entries
-		var product shared.Product
-		if err := db.First(&product, "id = ?", body.ArtefactId).Error; err != nil {
+		var product server.Product
+		if err := db.First(&product, "product_id = ?", body.ArtefactId).Error; err != nil {
 			t.Errorf("Failed to find product: %v", err)
 		}
 
-		var engagements []shared.Engagement
+		var engagements []server.Engagement
 		if err := db.Where("product_id = ?", product.ID).Find(&engagements).Error; err != nil {
 			t.Errorf("Failed to find engagements: %v", err)
 		}
 		if len(engagements) != len(body.Reports) {
 			t.Errorf("Expected %d engagements, got %d", len(body.Reports), len(engagements))
+		}
+
+		for _, e := range engagements {
+			var vulnerabilities []server.Vulnerability
+			if err := db.Where("engagement_id = ?", e.ID).Find(&vulnerabilities).Error; err != nil {
+				t.Errorf("Failed to find vulberabilities for %s: %v", e.Tool, err)
+			}
+			if len(vulnerabilities) != len(e.Report().Runs[0].Results) {
+				t.Errorf("Expected %d vulnerabilities for %s, got %d", len(e.Report().Runs[0].Results), e.Tool, len(vulnerabilities))
+			}
 		}
 	})
 
@@ -148,8 +159,8 @@ func TestOriginHandler(t *testing.T) {
 
 			if tt.expectedStatus == http.StatusOK {
 				// Validate database entries
-				var product shared.Product
-				if err := db.First(&product, "id = ?", tt.requestBody.Product.Id).Error; err != nil {
+				var product server.Product
+				if err := db.First(&product, "product_id = ?", tt.requestBody.Product.Id).Error; err != nil {
 					t.Errorf("Product not found in database: %v", err)
 				}
 
@@ -160,14 +171,14 @@ func TestOriginHandler(t *testing.T) {
 				}
 
 				for _, o := range tt.requestBody.Origins {
-					var origin shared.Product
-					if err := db.First(&origin, "id = ?", o.Id).Error; err != nil {
+					var origin server.Product
+					if err := db.First(&origin, "product_id = ?", o.Id).Error; err != nil {
 						t.Errorf("Origin not found in database: %v", err)
 					}
 				}
 
-				var links []shared.Link
-				if err := db.Where("product_id = ?", tt.requestBody.Product.Id).Find(&links).Error; err != nil {
+				var links []server.Link
+				if err := db.Where("product_id = ?", product.ID).Find(&links).Error; err != nil {
 					t.Errorf("Failed to find links in database: %v", err)
 				}
 

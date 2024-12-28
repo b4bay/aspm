@@ -24,6 +24,7 @@ func main() {
 	http.HandleFunc("GET /api/v1/ui/product", server.UIProductHandler)
 	http.HandleFunc("GET /api/v1/ui/link", server.UILinkHandler)
 	http.HandleFunc("GET /api/v1/ui/engagement", server.UIEngagementHandler)
+	http.HandleFunc("GET /api/v1/ui/vulnerability", server.UIVulnerabilityHandler)
 	http.HandleFunc("GET /api/v1/ui/version", server.UIVersionHandler)
 
 	fmt.Println("Server is running on :8080")

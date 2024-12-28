@@ -23,32 +23,31 @@ func CollectHandler(w http.ResponseWriter, r *http.Request) {
 	for _, report := range body.Reports {
 		DB.Transaction(func(tx *gorm.DB) error {
 			// Ensure Product exists
-			var product shared.Product
-			if err := tx.FirstOrCreate(&product, shared.Product{
-				ID: body.ArtefactId,
+			var product Product
+			if err := tx.FirstOrCreate(&product, Product{
+				ProductID: body.ArtefactId,
 			}).Error; err != nil {
 				http.Error(w, "Failed to create or find product", http.StatusInternalServerError)
 				return err
 			}
 
-			// Check and update empty fields in Product
-			if product.CreatedAt.IsZero() {
-				product.CreatedAt = time.Now()
-				if err := tx.Save(&product).Error; err != nil {
-					http.Error(w, "Failed to update product", http.StatusInternalServerError)
-					return err
-				}
-			}
-
 			// Save Engagement
-			engagement := shared.Engagement{
-				CreatedAt: time.Now(),
+			engagement := Engagement{
 				ProductID: product.ID,
-				Tool:      "unknown", // TODO: Get tool name from report
 				RawReport: report,
 			}
+
+			if err = engagement.UpdateTool(); err != nil {
+				engagement.Tool = "unknown"
+			}
+
 			if result := tx.Create(&engagement); result.Error != nil {
 				http.Error(w, "Failed to create engagement", http.StatusInternalServerError)
+				return err
+			}
+
+			if err = engagement.Process(tx); err != nil {
+				http.Error(w, "Failed to process engagement", http.StatusInternalServerError)
 				return err
 			}
 
@@ -88,9 +87,9 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 
 	DB.Transaction(func(tx *gorm.DB) error {
 		// Ensure Product exists
-		var product shared.Product
-		if err := tx.FirstOrCreate(&product, shared.Product{
-			ID: body.Product.Id,
+		var product Product
+		if err := tx.FirstOrCreate(&product, Product{
+			ProductID: body.Product.Id,
 		}).Error; err != nil {
 			http.Error(w, "Failed to create or find product", http.StatusInternalServerError)
 			return err
@@ -133,9 +132,9 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Process OriginIds and create Links
 		for _, o := range body.Origins {
-			var origin shared.Product
-			if err := tx.FirstOrCreate(&origin, shared.Product{
-				ID: o.Id,
+			var origin Product
+			if err := tx.FirstOrCreate(&origin, Product{
+				ProductID: o.Id,
 			}).Error; err != nil {
 				http.Error(w, "Failed to create or find origin", http.StatusInternalServerError)
 				return err
@@ -168,8 +167,8 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			var link = shared.Link{}
-			if err := tx.FirstOrCreate(&link, shared.Link{
+			var link = Link{}
+			if err := tx.FirstOrCreate(&link, Link{
 				ProductID: product.ID,
 				OriginID:  origin.ID,
 				Type:      body.ProductionMethod,

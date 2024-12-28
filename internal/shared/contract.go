@@ -1,9 +1,5 @@
 package shared
 
-import (
-	"time"
-)
-
 type CliMode string
 
 const (
@@ -80,65 +76,4 @@ type CollectMessageBody struct {
 	Environment map[string]string `json:"environment"`
 	ArtefactId  string            `json:"artefact_id"`
 	Reports     map[string]string `json:"reports"`
-}
-
-type Engagement struct {
-	ID        uint `gorm:"primaryKey"`
-	CreatedAt time.Time
-	ProductID string `gorm:"index;not null"`
-	Tool      string
-	RawReport string
-	// Associations
-	Product Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:ProductID;references:ID"`
-}
-
-type EngagementResponse struct {
-	ID           uint      `json:"id"`
-	ProductID    string    `json:"product_id"`
-	Tool         string    `json:"tool"`
-	ReportLength int       `json:"report_length"`
-	CreatedAt    time.Time `json:"created_at"`
-}
-
-type Product struct {
-	ID        string `gorm:"primaryKey"`
-	Name      string
-	Type      ArtefactType
-	Project   string
-	Author    string
-	Worker    string
-	CreatedAt time.Time
-}
-
-type ProductResponse struct {
-	ID        string       `json:"id"`
-	Name      string       `json:"name"`
-	Type      ArtefactType `json:"type"`
-	Project   string       `json:"project"`
-	Author    string       `json:"author"`
-	Worker    string       `json:"worker"`
-	CreatedAt time.Time    `json:"created_at"`
-}
-
-type Link struct {
-	ID        uint   `gorm:"primaryKey"`
-	ProductID string `gorm:"index;not null"`
-	OriginID  string `gorm:"index;not null"`
-	Type      ProductionMethod
-	CreatedAt time.Time
-	// Associations
-	Product Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:ProductID;references:ID"`
-	Origin  Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:OriginID;references:ID"`
-}
-
-type LinkResponse struct {
-	ID        uint             `json:"id"`
-	ProductID string           `json:"product_id"`
-	OriginID  string           `json:"origin_id"`
-	Type      ProductionMethod `json:"type"`
-	CreatedAt time.Time        `json:"created_at"`
-}
-
-type VersionResponse struct {
-	Version string `json:"version"`
 }
