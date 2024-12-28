@@ -8,12 +8,12 @@ import (
 
 type Engagement struct {
 	gorm.Model
-	ProductID uint `gorm:"index;not null"`
+	ProductID string `gorm:"index;not null"`
 	Tool      string
 	RawReport string
 	report    *sarif.Report
 	// Associations
-	Product Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:ProductID;references:ID"`
+	Product Product `gorm:"constraint:OnDelete:CASCADE;foreignKey:ProductID;references:ProductID"`
 }
 
 func (e *Engagement) AfterFind(db *gorm.DB) (err error) {

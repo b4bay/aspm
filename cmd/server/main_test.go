@@ -8,6 +8,7 @@ import (
 	"github.com/b4bay/aspm/internal/shared"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -64,7 +65,7 @@ func TestCollectHandler(t *testing.T) {
 		}
 
 		var engagements []server.Engagement
-		if err := db.Where("product_id = ?", product.ID).Find(&engagements).Error; err != nil {
+		if err := db.Where("product_id = ?", product.ProductID).Preload(clause.Associations).Find(&engagements).Error; err != nil {
 			t.Errorf("Failed to find engagements: %v", err)
 		}
 		if len(engagements) != len(body.Reports) {
@@ -73,7 +74,7 @@ func TestCollectHandler(t *testing.T) {
 
 		for _, e := range engagements {
 			var vulnerabilities []server.Vulnerability
-			if err := db.Where("engagement_id = ?", e.ID).Find(&vulnerabilities).Error; err != nil {
+			if err := db.Where("engagement_id = ?", e.ID).Preload(clause.Associations).Find(&vulnerabilities).Error; err != nil {
 				t.Errorf("Failed to find vulberabilities for %s: %v", e.Tool, err)
 			}
 			if len(vulnerabilities) != len(e.Report().Runs[0].Results) {
@@ -178,7 +179,7 @@ func TestOriginHandler(t *testing.T) {
 				}
 
 				var links []server.Link
-				if err := db.Where("product_id = ?", product.ID).Find(&links).Error; err != nil {
+				if err := db.Preload(clause.Associations).Where("product_id = ?", product.ProductID).Find(&links).Error; err != nil {
 					t.Errorf("Failed to find links in database: %v", err)
 				}
 

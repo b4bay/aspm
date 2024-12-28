@@ -33,7 +33,7 @@ func CollectHandler(w http.ResponseWriter, r *http.Request) {
 
 			// Save Engagement
 			engagement := Engagement{
-				ProductID: product.ID,
+				ProductID: product.ProductID,
 				RawReport: report,
 			}
 
@@ -169,8 +169,8 @@ func OriginHandler(w http.ResponseWriter, r *http.Request) {
 
 			var link = Link{}
 			if err := tx.FirstOrCreate(&link, Link{
-				ProductID: product.ID,
-				OriginID:  origin.ID,
+				ProductID: product.ProductID,
+				OriginID:  origin.ProductID,
 				Type:      body.ProductionMethod,
 			}).Error; err != nil {
 				http.Error(w, "Failed to create or find link", http.StatusInternalServerError)
