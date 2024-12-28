@@ -74,6 +74,6 @@ type OriginMessageBody struct {
 
 type CollectMessageBody struct {
 	Environment map[string]string `json:"environment"`
-	ArtefactId  string            `json:"artefact_id"`
+	Artefact    ProductMessage    `json:"artefact"`
 	Reports     map[string]string `json:"reports"`
 }

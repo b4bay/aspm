@@ -31,8 +31,11 @@ func TestCollectHandler(t *testing.T) {
 	t.Run("valid request", func(t *testing.T) {
 		// Create a valid CollectMessageBody
 		body := shared.CollectMessageBody{
-			ArtefactId: "test-artifact",
-			Reports:    map[string]string{"gosec.sarif": sarif.MockGosecReport, "govuncheck.sarif": sarif.MockGovulncheckReport},
+			Artefact: shared.ProductMessage{
+				Type: shared.ArtefactTypeGit,
+				Id:   "test-artifact",
+			},
+			Reports: map[string]string{"gosec.sarif": sarif.MockGosecReport, "govuncheck.sarif": sarif.MockGovulncheckReport},
 		}
 
 		jsonBody, err := json.Marshal(body)
@@ -60,7 +63,7 @@ func TestCollectHandler(t *testing.T) {
 
 		// Validate the database entries
 		var product server.Product
-		if err := db.First(&product, "product_id = ?", body.ArtefactId).Error; err != nil {
+		if err := db.First(&product, "product_id = ?", body.Artefact.Id).Error; err != nil {
 			t.Errorf("Failed to find product: %v", err)
 		}
 

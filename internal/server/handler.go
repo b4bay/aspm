@@ -25,7 +25,7 @@ func CollectHandler(w http.ResponseWriter, r *http.Request) {
 			// Ensure Product exists
 			var product Product
 			if err := tx.FirstOrCreate(&product, Product{
-				ProductID: body.ArtefactId,
+				ProductID: body.Artefact.Id,
 			}).Error; err != nil {
 				http.Error(w, "Failed to create or find product", http.StatusInternalServerError)
 				return err

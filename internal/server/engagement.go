@@ -53,8 +53,8 @@ func (e *Engagement) Process(tx *gorm.DB) (err error) {
 			v.ProductID = e.ProductID
 			v.Level = result.Level
 			v.Text = result.Message.Text
-			v.CWE = result.CWE()
-			v.CVE = result.CVE()
+			v.CWE = run.CWE(&result)
+			v.CVE = run.CVE(&result)
 			v.EngagementID = e.ID
 
 			if r := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&v); r.Error != nil {

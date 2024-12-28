@@ -52,10 +52,12 @@ func main() {
 func handleCollectMode(args []string) {
 	var artefactType shared.ArtefactType
 	var (
-		artefactPath string
-		artefactId   string
-		artefactInfo os.FileInfo
-		reportsPath  []string
+		artefactPath   string
+		artefactId     string
+		artefactName   string
+		artefactAuthor string
+		artefactInfo   os.FileInfo
+		reportsPath    []string
 	)
 
 	var err error
@@ -89,9 +91,15 @@ func handleCollectMode(args []string) {
 	if artefactType == shared.ArtefactTypeGit {
 		artefactId, err = cli.IdGit(artefactPath)
 		if err != nil {
-			fmt.Printf("Error: Invalid artefact '%s': %v\n", artefactPath, err)
+			fmt.Printf("Error: Invalid artefact (id) '%s': %v\n", artefactPath, err)
 			Exit(1)
 		}
+		artefactName, err = cli.NameGit(artefactPath)
+		if err != nil {
+			fmt.Printf("Error: Invalid artefact (name) '%s': %v\n", artefactPath, err)
+			Exit(1)
+		}
+		artefactAuthor = cli.GetAuthorFromGit()
 	}
 
 	if artefactType == shared.ArtefactTypeBin {
@@ -104,7 +112,12 @@ func handleCollectMode(args []string) {
 
 	fmt.Printf("Running in 'collect' mode: artefact=%s, reports=%v\n", artefactPath, reportsPath)
 
-	collectPayload.ArtefactId = artefactId
+	collectPayload.Artefact = shared.ProductMessage{
+		Id:     artefactId,
+		Type:   artefactType,
+		Name:   artefactName,
+		Author: artefactAuthor,
+	}
 	collectPayload.Environment = cli.GetEnvironment()
 	collectPayload.Reports = cli.GetReports(reportsPath)
 

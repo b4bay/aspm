@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // PropertyBag is a set of name/value pair that can store extra metadata
@@ -63,25 +64,6 @@ type Report struct {
 	Runs    []Run  `json:"runs"`
 }
 
-// New Creates a new Report or returns an error
-func New(version Version, includeSchema ...bool) (*Report, error) {
-	schema := ""
-
-	if len(includeSchema) == 0 || includeSchema[0] {
-		var err error
-
-		schema, err = getVersionSchema(version)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &Report{
-		Version: string(version),
-		Schema:  schema,
-		Runs:    []Run{},
-	}, nil
-}
-
 // FromFile loads a Report from a file
 func FromFile(filename string) (*Report, error) {
 	if _, err := os.Stat(filename); err != nil && os.IsNotExist(err) {
@@ -122,6 +104,113 @@ type Run struct {
 	Tool        Tool         `json:"tool"`
 	Results     []Result     `json:"results"`
 	Invocations []Invocation `json:"invocations,omitempty"`
+	Taxonomies  []Taxonomy   `json:"taxonomies,omitempty"`
+	ruleToCWE   map[string]string
+	ruleToCVE   map[string]string
+}
+
+// Added
+type Taxonomy struct {
+	Name string `json:"name,omitempty"`
+	Taxa []Taxa `json:"taxa,omitempty"`
+}
+
+// Added
+type Taxa struct {
+	FullDescription  Description `json:"fullDescription,omitempty"`
+	GUID             string      `json:"guid,omitempty"`
+	HelpURI          string      `json:"helpUri,omitempty"`
+	ID               string      `json:"id,omitempty"`
+	ShortDescription Description `json:"shortDescription,omitempty"`
+}
+
+type Description struct {
+	Text string `json:"text,omitempty"`
+}
+
+type Tags []string
+
+// New Creates a new Report or returns an error
+func New(version Version, includeSchema ...bool) (*Report, error) {
+	schema := ""
+
+	if len(includeSchema) == 0 || includeSchema[0] {
+		var err error
+
+		schema, err = getVersionSchema(version)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &Report{
+		Version: string(version),
+		Schema:  schema,
+		Runs:    []Run{},
+	}, nil
+}
+
+func (run *Run) makeRuleToCWEMap() {
+	run.ruleToCWE = map[string]string{}
+	if run.Tool.Driver.Name == "gosec" {
+		var cweTaxonomy Taxonomy
+		for _, t := range run.Taxonomies {
+			if t.Name == "CWE" {
+				cweTaxonomy = t
+				break
+			}
+		}
+
+		for _, tx := range cweTaxonomy.Taxa {
+			guid := tx.GUID
+			cweId := tx.ID
+			var ruleId string
+			for _, rule := range run.Tool.Driver.Rules {
+				for _, rel := range rule.Relationships {
+					if rel.Target.GUID == guid {
+						ruleId = rule.Id
+						break
+					}
+				}
+				if ruleId != "" {
+					break
+				}
+			}
+
+			run.ruleToCWE[ruleId] = "CWE-" + cweId
+		}
+	}
+}
+
+func (run *Run) makeRuleToCVEMap() {
+	run.ruleToCVE = map[string]string{}
+	if run.Tool.Driver.Name == "govulncheck" {
+		for _, rule := range run.Tool.Driver.Rules {
+			propertiesAsMap := rule.Properties.(map[string]interface{})
+			tags := propertiesAsMap["tags"]
+			//tagsAsTags := tags.(Tags)
+			tagsAsSlice := tags.([]interface{})
+			for _, tag := range tagsAsSlice {
+				tagAsString := tag.(string)
+				if strings.HasPrefix(tagAsString, "CVE") {
+					run.ruleToCVE[rule.Id] = tagAsString
+				}
+			}
+		}
+	}
+}
+
+func (run *Run) CWE(result *Result) string {
+	if run.ruleToCWE == nil {
+		run.makeRuleToCWEMap()
+	}
+	return run.ruleToCWE[result.RuleId]
+}
+
+func (run *Run) CVE(result *Result) string {
+	if run.ruleToCVE == nil {
+		run.makeRuleToCVEMap()
+	}
+	return run.ruleToCVE[result.RuleId]
 }
 
 // The runtime environment of the analysis tool run
@@ -177,6 +266,19 @@ type ReportingDescriptor struct {
 	MessageStrings   *MultiformatMessageString `json:"messageStrings,omitempty"`
 	Help             *MultiformatMessageString `json:"help,omitempty"`
 	Properties       PropertyBag               `json:"properties,omitempty"`
+	// Added
+	Relationships []Relationship `json:"relationships,omitempty"`
+}
+
+// Added
+type Relationship struct {
+	Kinds  []string           `json:"kinds,omitempty"`
+	Target RelationshipTarget `json:"target,omitempty"`
+}
+
+type RelationshipTarget struct {
+	GUID string `json:"guid,omitempty"`
+	ID   string `json:"id,omitempty"`
 }
 
 // Result contains result produced by analysis tool
@@ -196,32 +298,22 @@ type Result struct {
 	// Attachments    interface{}                  `json:"attachments,omitempty"`
 }
 
-func (r *Result) CWE() string {
-	// TODO: Implement
-	return "not implemented"
-}
-
-func (r *Result) CVE() string {
-	// TODO: Implement
-	return "not implemented"
-}
-
 func (r *Result) LocationHash() string {
 	var hash string
-	ploc := r.Locations[0].PhysicalLocation
+	loc := r.Locations[0].PhysicalLocation
 
-	if ploc.ArtifactLocation.Uri != "" {
-		hash = ploc.ArtifactLocation.Uri
-		if ploc.Region.StartLine != 0 {
-			hash += fmt.Sprintf("(%d", ploc.Region.StartLine)
-			if ploc.Region.StartColumn != 0 {
-				hash += fmt.Sprintf(":%d", ploc.Region.StartColumn)
+	if loc.ArtifactLocation.Uri != "" {
+		hash = loc.ArtifactLocation.Uri
+		if loc.Region.StartLine != 0 {
+			hash += fmt.Sprintf("(%d", loc.Region.StartLine)
+			if loc.Region.StartColumn != 0 {
+				hash += fmt.Sprintf(":%d", loc.Region.StartColumn)
 			}
-			if ploc.Region.EndLine != 0 {
-				hash += fmt.Sprintf("-%d", ploc.Region.EndLine)
+			if loc.Region.EndLine != 0 {
+				hash += fmt.Sprintf("-%d", loc.Region.EndLine)
 			}
-			if ploc.Region.EndColumn != 0 {
-				hash += fmt.Sprintf(":%d", ploc.Region.EndColumn)
+			if loc.Region.EndColumn != 0 {
+				hash += fmt.Sprintf(":%d", loc.Region.EndColumn)
 			}
 			hash += ")"
 		}
