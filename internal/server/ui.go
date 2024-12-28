@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"gorm.io/gorm/clause"
 	"log"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all products from the database
 	var products []Product
-	if err := DB.Find(&products).Error; err != nil {
+	if err := DB.Preload(clause.Associations).Find(&products).Error; err != nil {
 		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
 		return
 	}
@@ -44,7 +45,7 @@ func UIProductHandler(w http.ResponseWriter, r *http.Request) {
 func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
 	var links []Link
-	if err := DB.Preload("Product").Find(&links).Error; err != nil {
+	if err := DB.Preload(clause.Associations).Find(&links).Error; err != nil {
 		http.Error(w, "Failed to fetch links", http.StatusInternalServerError)
 		return
 	}
@@ -74,7 +75,7 @@ func UILinkHandler(w http.ResponseWriter, r *http.Request) {
 func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all engagements from the database
 	var engagements []Engagement
-	if err := DB.Preload("Product").Find(&engagements).Error; err != nil {
+	if err := DB.Preload(clause.Associations).Find(&engagements).Error; err != nil {
 		http.Error(w, "Failed to fetch engagements", http.StatusInternalServerError)
 		return
 	}
@@ -104,7 +105,7 @@ func UIEngagementHandler(w http.ResponseWriter, r *http.Request) {
 func UIVulnerabilityHandler(w http.ResponseWriter, r *http.Request) {
 	// Fetch all links from the database
 	var vulnerabilities []Vulnerability
-	if err := DB.Preload("Product").Preload("Engagement").Find(&vulnerabilities).Error; err != nil {
+	if err := DB.Preload(clause.Associations).Find(&vulnerabilities).Error; err != nil {
 		http.Error(w, "Failed to fetch vulnerabilities", http.StatusInternalServerError)
 		return
 	}
