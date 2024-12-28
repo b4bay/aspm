@@ -23,17 +23,57 @@ func CollectHandler(w http.ResponseWriter, r *http.Request) {
 	for _, report := range body.Reports {
 		DB.Transaction(func(tx *gorm.DB) error {
 			// Ensure Product exists
-			var product Product
-			if err := tx.FirstOrCreate(&product, Product{
+			var artefact Product
+			if err := tx.FirstOrCreate(&artefact, Product{
 				ProductID: body.Artefact.Id,
 			}).Error; err != nil {
 				http.Error(w, "Failed to create or find product", http.StatusInternalServerError)
 				return err
 			}
 
+			var project = GetProjectFromEnvironment(body.Environment)
+			var worker = GetWorkerFromEnvironment(body.Environment)
+			var author string
+			if body.Artefact.Author != "" {
+				author = body.Artefact.Author
+			} else {
+				author = GetAuthorFromEnvironment(body.Environment)
+			}
+
+			var needToUpdate = false
+			// Check and update empty fields in Product
+			if artefact.Name == "" && body.Artefact.Name != "" {
+				artefact.Name = body.Artefact.Name
+				needToUpdate = true
+			}
+			if artefact.Type == "" && body.Artefact.Type != "" {
+				artefact.Type = body.Artefact.Type
+				needToUpdate = true
+			}
+			if artefact.Project == "" && project != "" {
+				artefact.Project = project
+				needToUpdate = true
+			}
+			if artefact.Author == "" && author != "" {
+				artefact.Author = author
+				needToUpdate = true
+			}
+			if artefact.Worker == "" && worker != "" {
+				artefact.Worker = worker
+				needToUpdate = true
+			}
+
+			// Save updated product if necessary
+			if needToUpdate {
+				if err := tx.Save(&artefact).Error; err != nil {
+					http.Error(w, "Failed to update product", http.StatusInternalServerError)
+					return err
+				}
+			}
+
 			// Save Engagement
 			engagement := Engagement{
-				ProductID: product.ProductID,
+				ProductID: artefact.ProductID,
 				RawReport: report,
 			}
 
